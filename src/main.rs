@@ -1,7 +1,14 @@
 mod cli;
+mod cryptography;
+mod io;
+mod stenography;
+mod ui;
 
 use crate::cli::{Cli, Commands};
-use clap::{Error, Parser};
+use crate::cryptography::aes::AesCipher;
+use crate::stenography::lsb::LsbCodec;
+use crate::ui::display_welcome;
+use clap::Parser;
 use colored::*;
 
 fn main() {
@@ -11,7 +18,9 @@ fn main() {
     }
 }
 
-fn run() -> Result<(), Error> {
+fn run() -> Result<(), String> {
+    display_welcome();
+
     let cli: Cli = Cli::parse();
 
     if let Some(name) = cli.name.as_deref() {
@@ -25,6 +34,10 @@ fn run() -> Result<(), Error> {
             output_path,
             key,
         } => {
+            // Check args
+            // Conditionally encrypt data
+            // Encode data
+            // Write encoded image data
             // --- Debug
             println!("{}", "Encode!".green());
             println!(
@@ -42,6 +55,10 @@ fn run() -> Result<(), Error> {
             output_path,
             key,
         } => {
+            // Check args
+            // Decode data
+            // Decrypt data
+            // Write decrypted and decoded data
             // --- Debug
             println!("{}", "Decode!".green());
             println!(
