@@ -1,15 +1,17 @@
 mod cli;
 mod cryptography;
+mod error;
 mod io;
 mod stenography;
 mod ui;
 
-use crate::cli::{Cli, Commands};
-use crate::cryptography::aes::AesCipher;
-use crate::stenography::lsb::LsbCodec;
-use crate::ui::display_welcome;
 use clap::Parser;
+use cli::{Cli, Commands};
 use colored::*;
+use cryptography::aes::AesCipher;
+use error::ApplicationError;
+use stenography::lsb::LsbCodec;
+use ui::display_welcome;
 
 fn main() {
     if let Err(e) = run() {
@@ -18,7 +20,7 @@ fn main() {
     }
 }
 
-fn run() -> Result<(), String> {
+fn run() -> Result<(), ApplicationError> {
     display_welcome();
 
     let cli: Cli = Cli::parse();
