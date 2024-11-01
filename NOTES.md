@@ -4,5 +4,6 @@
 
 ## TODO
 - Support for more file types
-- Error messages about bad file types (e.g., I don't think we can use jpg as a carrier file)
+- Convert lossy image formats to lossless
+- Ensure message can fit in image
 - encryption support
