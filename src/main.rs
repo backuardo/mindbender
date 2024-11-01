@@ -5,13 +5,11 @@ mod io;
 mod stenography;
 mod ui;
 
+use crate::stenography::lsb;
 use clap::Parser;
 use cli::{Cli, Commands};
 use colored::*;
-use cryptography::aes::AesCipher;
 use error::ApplicationError;
-use stenography::lsb::LsbCodec;
-use ui::display_welcome;
 
 fn main() {
     if let Err(e) = run() {
@@ -21,13 +19,9 @@ fn main() {
 }
 
 fn run() -> Result<(), ApplicationError> {
-    display_welcome();
+    ui::display_welcome();
 
     let cli: Cli = Cli::parse();
-
-    if let Some(name) = cli.name.as_deref() {
-        println!("Value for name: {name}");
-    }
 
     match cli.command {
         Commands::Encode {
@@ -36,10 +30,15 @@ fn run() -> Result<(), ApplicationError> {
             output_path,
             key,
         } => {
-            // Check args
-            // Conditionally encrypt data
-            // Encode data
-            // Write encoded image data
+            // Load carrier image
+            let image = io::load_image(&carrier_path)?;
+            // Read data from specified file
+            let data = io::read_text_file(&data_path)?;
+            // Encode data into the image
+            let encoded_image = lsb::encode(&data, &image)?;
+            // Write encoded image to specified output path
+            io::write_image_file(&encoded_image, &output_path)?;
+
             // --- Debug
             println!("{}", "Encode!".green());
             println!(
@@ -57,10 +56,13 @@ fn run() -> Result<(), ApplicationError> {
             output_path,
             key,
         } => {
-            // Check args
-            // Decode data
-            // Decrypt data
-            // Write decrypted and decoded data
+            // Load the carrier image with encoded data
+            let image = io::load_image(&carrier_path)?;
+            // Decode message from image
+            let decoded_message = lsb::decode(&image)?;
+            // Write decoded message to specified output path
+            io::write_text_file(&decoded_message, &output_path)?;
+
             // --- Debug
             println!("{}", "Decode!".green());
             println!(

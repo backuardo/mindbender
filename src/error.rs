@@ -4,7 +4,13 @@ use thiserror::Error;
 #[derive(Error, Debug)]
 pub enum ApplicationError {
     #[error("Command-line parsing error: {0}")]
-    CliError(#[from] clap::Error),
+    CliError(String),
+
+    #[error("Invalid path error: {0}")]
+    InvalidPathError(String),
+
+    #[error("Image error: {0}")]
+    ImageError(#[from] image::ImageError),
 
     #[error("I/O error: {0}")]
     IoError(#[from] io::Error),
