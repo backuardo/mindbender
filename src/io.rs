@@ -1,9 +1,9 @@
 use crate::error::ApplicationError;
+use colored::*;
 use image::{ImageFormat, ImageReader, RgbImage};
-use std::ffi::OsStr;
 use std::fs::{self, File};
 use std::io::{Read, Write};
-use std::path::{self, Path};
+use std::path::Path;
 
 /// Validate that a file path is valid
 pub fn validate_path(file_path: &str) -> Result<(), ApplicationError> {
@@ -16,30 +16,21 @@ pub fn validate_path(file_path: &str) -> Result<(), ApplicationError> {
     Ok(())
 }
 
-/// Return the file extension
-pub fn file_extension(file_path: &str) -> Result<&str, ApplicationError> {
-    path::Path::new(file_path)
-        .extension()
-        .and_then(OsStr::to_str)
-        .ok_or_else(|| {
-            ApplicationError::InvalidPathError(format!(
-                "File extension is missing for '{}'.",
-                file_path
-            ))
-        })
-}
-
-/// Return the file format for a file extension
-pub fn file_format(file_extension: &str) -> Result<ImageFormat, ApplicationError> {
-    match file_extension.to_lowercase().as_str() {
-        "png" => Ok(ImageFormat::Png),
-        "jpg" | "jpeg" => Ok(ImageFormat::Jpeg),
-        _ => {
-            return Err(ApplicationError::InvalidPathError(format!(
-                "Unsupported file extension '{}' for image output.",
-                file_extension
-            )))
+/// Determine whether a file is lossless
+fn is_lossless(file_path: &str) -> Result<bool, ApplicationError> {
+    let format = ImageFormat::from_path(file_path)?;
+    match format {
+        ImageFormat::WebP => {
+            // Assume lossy; specific library check required for lossless WebP detection
+            println!("{}", "Warning: WebP detected; assuming lossy".yellow());
+            Ok(false)
         }
+        ImageFormat::Png | ImageFormat::Bmp | ImageFormat::Tiff => Ok(true),
+        ImageFormat::Jpeg | ImageFormat::Gif => Ok(false),
+        _ => Err(ApplicationError::InvalidPathError(format!(
+            "Unsupported file type '{:?}'",
+            format
+        ))),
     }
 }
 
@@ -74,8 +65,7 @@ pub fn ensure_parent_directory(file_path: &str) -> Result<(), ApplicationError> 
 pub fn write_image_file(image: &RgbImage, file_path: &str) -> Result<(), ApplicationError> {
     ensure_parent_directory(file_path)?;
 
-    let extension = file_extension(file_path)?;
-    let format = file_format(extension)?;
+    let format = ImageFormat::from_path(file_path)?;
     image
         .save_with_format(file_path, format)
         .map_err(ApplicationError::ImageError)
