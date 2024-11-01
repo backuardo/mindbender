@@ -5,5 +5,6 @@
 ## TODO
 - Support for more file types
 - Convert lossy image formats to lossless
-- Ensure message can fit in image
+- Ensure message can fit in image (calculate storage capacity)
 - encryption support
+- parallelize
