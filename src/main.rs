@@ -5,7 +5,7 @@ mod io;
 mod stenography;
 mod ui;
 
-use crate::stenography::{lsb, util::is_sufficient_capacity};
+use crate::stenography::lsb;
 use clap::Parser;
 use cli::{Cli, Commands};
 use colored::*;
