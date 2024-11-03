@@ -1,12 +1,19 @@
 use crate::error::ApplicationError;
 use image::{Pixel, RgbImage};
 
-use super::util::image_capacity_bits;
+use super::util::{image_capacity_bits, is_sufficient_capacity};
 
 /// Store text data in the least significant bits of an image's RGB channels
 pub fn encode(data: &str, image: &RgbImage) -> Result<RgbImage, ApplicationError> {
     // Append delimiter to the data
     let data_with_delimiter = format!("{}{}", data, '\0');
+
+    // Ensure there is enough capacity to encode the data
+    if !is_sufficient_capacity(&data_with_delimiter, image) {
+        return Err(ApplicationError::EncodingError(
+            "Image too small to encode data".to_string(),
+        ));
+    }
 
     // Convert data to bits
     let bits: Vec<u8> = data_with_delimiter
@@ -15,11 +22,11 @@ pub fn encode(data: &str, image: &RgbImage) -> Result<RgbImage, ApplicationError
         .collect();
 
     // Ensure there is enough capacity to encode the data
-    if bits.len() > image_capacity_bits(image) {
-        return Err(ApplicationError::EncodingError(
-            "Image too small to encode data".to_string(),
-        ));
-    }
+    // if bits.len() > image_capacity_bits(image) {
+    //     return Err(ApplicationError::EncodingError(
+    //         "Image too small to encode data".to_string(),
+    //     ));
+    // }
 
     // Encode each bit into the image, one channel per pixel
     let mut encoded_image = image.clone();
