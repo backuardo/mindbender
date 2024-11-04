@@ -2,10 +2,10 @@ mod cli;
 mod cryptography;
 mod error;
 mod io;
-mod stenography;
+mod steganography;
 mod ui;
 
-use crate::stenography::lsb;
+use crate::steganography::lsb;
 use clap::Parser;
 use cli::{Cli, Commands};
 use colored::*;

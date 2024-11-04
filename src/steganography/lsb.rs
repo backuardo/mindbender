@@ -1,7 +1,7 @@
 use crate::error::ApplicationError;
 use image::{Pixel, RgbImage};
 
-use super::util::{image_capacity_bits, is_sufficient_capacity};
+use super::util::is_sufficient_capacity;
 
 /// Store text data in the least significant bits of an image's RGB channels
 pub fn encode(data: &str, image: &RgbImage) -> Result<RgbImage, ApplicationError> {
@@ -70,4 +70,76 @@ pub fn decode(image: &RgbImage) -> Result<String, ApplicationError> {
         .map_err(|_| ApplicationError::DecodingError("Failed to decode message".to_string()))?;
 
     Ok(message)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use image::{Rgb, RgbImage};
+
+    /// Utility function to create a blank RgbImage of specified dimensions
+    fn create_blank_image(width: u32, height: u32) -> RgbImage {
+        RgbImage::from_pixel(width, height, Rgb([0, 0, 0]))
+    }
+
+    #[test]
+    fn test_encode_decode() {
+        let image = create_blank_image(10, 10);
+        let data = "Hello, World!";
+
+        // Encode data
+        let encoded_image = encode(data, &image).expect("Encoding failed");
+
+        // Decode data
+        let decoded_data = decode(&encoded_image).expect("Decoding failed");
+
+        // Ensure decoded data matches the original
+        assert_eq!(data, decoded_data);
+    }
+
+    #[test]
+    fn test_insufficient_capacity() {
+        let image = create_blank_image(1, 1); // Small image with insufficient capacity
+        let data = "This message is too long to fit";
+
+        // Attempt to encode data
+        let result = encode(data, &image);
+
+        // Ensure an encoding error is returned
+        assert!(result.is_err());
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            "Encoding error: Image too small to encode data"
+        );
+    }
+
+    #[test]
+    fn test_encode_empty_string() {
+        let image = create_blank_image(5, 5);
+        let data = "";
+
+        // Encode data
+        let encoded_image = encode(data, &image).expect("Encoding failed");
+
+        // Decode data
+        let decoded_data = decode(&encoded_image).expect("Decoding failed");
+
+        // Ensure decoded data matches the original (empty string)
+        assert_eq!(data, decoded_data);
+    }
+
+    #[test]
+    fn test_encode_decode_with_delimiter() {
+        let image = create_blank_image(10, 10);
+        let data = "Message with delimiter test";
+
+        // Encode data
+        let encoded_image = encode(data, &image).expect("Encoding failed");
+
+        // Decode data
+        let decoded_data = decode(&encoded_image).expect("Decoding failed");
+
+        // Ensure decoded data matches the original, including delimiter handling
+        assert_eq!(data, decoded_data);
+    }
 }
