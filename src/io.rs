@@ -1,5 +1,5 @@
 use crate::error::ApplicationError;
-use colored::*;
+// use colored::*;
 use image::{ImageFormat, ImageReader, RgbImage};
 use std::fs::{self, File};
 use std::io::{Read, Write};
@@ -30,22 +30,22 @@ pub fn has_valid_image_extension(file_path: &str) -> bool {
 }
 
 /// Determine whether a file is lossless
-fn is_lossless(file_path: &str) -> Result<bool, ApplicationError> {
-    let format = ImageFormat::from_path(file_path)?;
-    match format {
-        ImageFormat::WebP => {
-            // Assume lossy; specific library check required for lossless WebP detection
-            println!("{}", "Warning: WebP detected; assuming lossy".yellow());
-            Ok(false)
-        }
-        ImageFormat::Png | ImageFormat::Bmp | ImageFormat::Tiff => Ok(true),
-        ImageFormat::Jpeg | ImageFormat::Gif => Ok(false),
-        _ => Err(ApplicationError::InvalidPathError(format!(
-            "Unsupported file type '{:?}'",
-            format
-        ))),
-    }
-}
+// fn is_lossless(file_path: &str) -> Result<bool, ApplicationError> {
+//     let format = ImageFormat::from_path(file_path)?;
+//     match format {
+//         ImageFormat::WebP => {
+//             // Assume lossy; specific library check required for lossless WebP detection
+//             println!("{}", "Warning: WebP detected; assuming lossy".yellow());
+//             Ok(false)
+//         }
+//         ImageFormat::Png | ImageFormat::Bmp | ImageFormat::Tiff => Ok(true),
+//         ImageFormat::Jpeg | ImageFormat::Gif => Ok(false),
+//         _ => Err(ApplicationError::InvalidPathError(format!(
+//             "Unsupported file type '{:?}'",
+//             format
+//         ))),
+//     }
+// }
 
 /// Read text data from the specified file path
 pub fn read_text_file(file_path: &str) -> Result<String, ApplicationError> {

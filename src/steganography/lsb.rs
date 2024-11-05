@@ -16,24 +16,18 @@ pub fn encode(data: &str, image: &mut RgbImage) -> Result<(), ApplicationError> 
         ));
     }
 
-    // Convert data to bits
-    let bits: Vec<u8> = data_with_delimiter
-        .bytes()
-        .flat_map(|byte| (0..8).rev().map(move |i| (byte >> i) & 1))
-        .collect();
+    // Get the image's underlying data buffer
+    let image_data = image.as_flat_samples_mut().samples;
 
-    let width = image.width() as usize;
-
-    // Use parallel iterator to encode each bit into the image directly
-    image
-        .enumerate_pixels_mut()
-        .par_bridge()
-        .for_each(|(x, y, pixel)| {
-            let pixel_index = (y as usize * width + x as usize) * 3;
-            for channel_index in 0..3 {
-                if let Some(&bit) = bits.get(pixel_index + channel_index) {
-                    pixel[channel_index] = (pixel[channel_index] & !1) | bit;
-                }
+    // Process the data and image data in parallel
+    image_data
+        .par_chunks_mut(8)
+        .zip(data_with_delimiter.as_bytes().par_iter())
+        .for_each(|(image_byte_chunk, &data_byte)| {
+            // Process each bit of the data byte
+            for (i, image_byte) in image_byte_chunk.iter_mut().enumerate() {
+                let bit = (data_byte >> (7 - i)) & 1;
+                *image_byte = (*image_byte & !1) | bit;
             }
         });
 
