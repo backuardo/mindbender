@@ -1,10 +1,11 @@
 use crate::error::ApplicationError;
 use image::{Pixel, RgbImage};
+use rayon::prelude::*;
 
 use super::util::is_sufficient_capacity;
 
 /// Store text data in the least significant bits of an image's RGB channels
-pub fn encode(data: &str, image: &RgbImage) -> Result<RgbImage, ApplicationError> {
+pub fn encode(data: &str, image: &mut RgbImage) -> Result<RgbImage, ApplicationError> {
     // Append delimiter to the data
     let data_with_delimiter = format!("{}{}", data, '\0');
 
@@ -21,34 +22,29 @@ pub fn encode(data: &str, image: &RgbImage) -> Result<RgbImage, ApplicationError
         .flat_map(|byte| (0..8).rev().map(move |i| (byte >> i) & 1))
         .collect();
 
-    // Ensure there is enough capacity to encode the data
-    // if bits.len() > image_capacity_bits(image) {
-    //     return Err(ApplicationError::EncodingError(
-    //         "Image too small to encode data".to_string(),
-    //     ));
-    // }
-
-    // Encode each bit into the image, one channel per pixel
+    // Clone image to modify in parallel
     let mut encoded_image = image.clone();
-    let width = image.width() as usize; // Convert width to usize for indexing
+    let width = image.width() as usize;
 
-    for (i, bit) in bits.iter().enumerate() {
-        let pixel_index = i / 3; // Each pixel has 3 channels (RGB)
-        let channel_index = i % 3; // 0, 1, or 2 for R, G, B
-
-        let x = (pixel_index % width) as u32;
-        let y = (pixel_index / width) as u32;
-
-        let pixel = encoded_image.get_pixel_mut(x, y);
-        pixel[channel_index] = (pixel[channel_index] & !1) | bit;
-    }
+    // Use parallel iterator to encode each bit into the image
+    encoded_image
+        .enumerate_pixels_mut()
+        .par_bridge()
+        .for_each(|(x, y, pixel)| {
+            let pixel_index = (y as usize * width + x as usize) * 3;
+            for channel_index in 0..3 {
+                if let Some(&bit) = bits.get(pixel_index + channel_index) {
+                    pixel[channel_index] = (pixel[channel_index] & !1) | bit;
+                }
+            }
+        });
 
     Ok(encoded_image)
 }
 
 /// Extract text data from the least significant bits of an image's RGB channels
 pub fn decode(image: &RgbImage) -> Result<String, ApplicationError> {
-    // Collect bits from each pixel's least significant bit
+    // Collect bits from each pixel's least significant bit in a specific order
     let bits: Vec<u8> = image
         .pixels()
         .flat_map(|pixel| pixel.channels().iter().map(|&channel| channel & 1))
@@ -84,11 +80,11 @@ mod tests {
 
     #[test]
     fn test_encode_decode() {
-        let image = create_blank_image(10, 10);
+        let mut image = create_blank_image(10, 10);
         let data = "Hello, World!";
 
         // Encode data
-        let encoded_image = encode(data, &image).expect("Encoding failed");
+        let encoded_image = encode(data, &mut image).expect("Encoding failed");
 
         // Decode data
         let decoded_data = decode(&encoded_image).expect("Decoding failed");
@@ -99,11 +95,11 @@ mod tests {
 
     #[test]
     fn test_insufficient_capacity() {
-        let image = create_blank_image(1, 1); // Small image with insufficient capacity
+        let mut image = create_blank_image(1, 1); // Small image with insufficient capacity
         let data = "This message is too long to fit";
 
         // Attempt to encode data
-        let result = encode(data, &image);
+        let result = encode(data, &mut image);
 
         // Ensure an encoding error is returned
         assert!(result.is_err());
@@ -115,11 +111,11 @@ mod tests {
 
     #[test]
     fn test_encode_empty_string() {
-        let image = create_blank_image(5, 5);
+        let mut image = create_blank_image(5, 5);
         let data = "";
 
         // Encode data
-        let encoded_image = encode(data, &image).expect("Encoding failed");
+        let encoded_image = encode(data, &mut image).expect("Encoding failed");
 
         // Decode data
         let decoded_data = decode(&encoded_image).expect("Decoding failed");
@@ -130,11 +126,11 @@ mod tests {
 
     #[test]
     fn test_encode_decode_with_delimiter() {
-        let image = create_blank_image(10, 10);
+        let mut image = create_blank_image(10, 10);
         let data = "Message with delimiter test";
 
         // Encode data
-        let encoded_image = encode(data, &image).expect("Encoding failed");
+        let encoded_image = encode(data, &mut image).expect("Encoding failed");
 
         // Decode data
         let decoded_data = decode(&encoded_image).expect("Decoding failed");

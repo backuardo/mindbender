@@ -32,7 +32,7 @@ fn run() -> Result<(), ApplicationError> {
             key,
         } => {
             // Load carrier image
-            let image = io::load_image(&carrier_path)?;
+            let mut image = io::load_image(&carrier_path)?;
             // Read data from specified file
             let mut data = io::read_text_file(&data_path)?;
             // Encrypt data if key provided
@@ -42,7 +42,7 @@ fn run() -> Result<(), ApplicationError> {
                 data = aes::encrypt(&data, &key_bytes)?;
             }
             // Encode data into the image
-            let encoded_image = lsb::encode(&data, &image)?;
+            let encoded_image = lsb::encode(&data, &mut image)?;
             // Write encoded image to specified output path
             io::write_image_file(&encoded_image, &output_path)?;
         }
