@@ -16,6 +16,19 @@ pub fn validate_path(file_path: &str) -> Result<(), ApplicationError> {
     Ok(())
 }
 
+/// Validate that the file path has a supported image extension
+pub fn has_valid_image_extension(file_path: &str) -> bool {
+    let path = Path::new(file_path);
+    if let Some(extension) = path.extension() {
+        match extension.to_str().unwrap_or("").to_lowercase().as_str() {
+            "png" | "jpg" | "jpeg" | "bmp" | "tiff" | "gif" => true,
+            _ => false,
+        }
+    } else {
+        false
+    }
+}
+
 /// Determine whether a file is lossless
 fn is_lossless(file_path: &str) -> Result<bool, ApplicationError> {
     let format = ImageFormat::from_path(file_path)?;

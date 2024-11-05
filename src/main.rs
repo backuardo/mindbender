@@ -34,17 +34,25 @@ fn run() -> Result<(), ApplicationError> {
             // Load carrier image
             let mut image = io::load_image(&carrier_path)?;
             // Read data from specified file
-            let mut data = io::read_text_file(&data_path)?;
+            let data = io::read_text_file(&data_path)?;
             // Encrypt data if key provided
-            if let Some(key) = key {
-                // Convert key to 32-byte array
+            let data = if let Some(key) = key {
                 let key_bytes = cryptography::util::key_to_bytes(&key)?;
-                data = aes::encrypt(&data, &key_bytes)?;
-            }
+                aes::encrypt(&data, &key_bytes)?
+            } else {
+                data
+            };
             // Encode data into the image
-            let encoded_image = lsb::encode(&data, &mut image)?;
+            lsb::encode(&data, &mut image)?;
+            // Ensure output path has a valid image extension
+            if !io::has_valid_image_extension(&output_path) {
+                return Err(ApplicationError::InvalidPathError(
+                    "Output path must have a valid image file extension, like .png or .jpg."
+                        .to_string(),
+                ));
+            }
             // Write encoded image to specified output path
-            io::write_image_file(&encoded_image, &output_path)?;
+            io::write_image_file(&image, &output_path)?;
         }
         Commands::Decode {
             carrier_path,

@@ -5,7 +5,7 @@ use rayon::prelude::*;
 use super::util::is_sufficient_capacity;
 
 /// Store text data in the least significant bits of an image's RGB channels
-pub fn encode(data: &str, image: &mut RgbImage) -> Result<RgbImage, ApplicationError> {
+pub fn encode(data: &str, image: &mut RgbImage) -> Result<(), ApplicationError> {
     // Append delimiter to the data
     let data_with_delimiter = format!("{}{}", data, '\0');
 
@@ -22,12 +22,10 @@ pub fn encode(data: &str, image: &mut RgbImage) -> Result<RgbImage, ApplicationE
         .flat_map(|byte| (0..8).rev().map(move |i| (byte >> i) & 1))
         .collect();
 
-    // Clone image to modify in parallel
-    let mut encoded_image = image.clone();
     let width = image.width() as usize;
 
-    // Use parallel iterator to encode each bit into the image
-    encoded_image
+    // Use parallel iterator to encode each bit into the image directly
+    image
         .enumerate_pixels_mut()
         .par_bridge()
         .for_each(|(x, y, pixel)| {
@@ -39,7 +37,7 @@ pub fn encode(data: &str, image: &mut RgbImage) -> Result<RgbImage, ApplicationE
             }
         });
 
-    Ok(encoded_image)
+    Ok(())
 }
 
 /// Extract text data from the least significant bits of an image's RGB channels
@@ -84,10 +82,10 @@ mod tests {
         let data = "Hello, World!";
 
         // Encode data
-        let encoded_image = encode(data, &mut image).expect("Encoding failed");
+        encode(data, &mut image).expect("Encoding failed");
 
         // Decode data
-        let decoded_data = decode(&encoded_image).expect("Decoding failed");
+        let decoded_data = decode(&image).expect("Decoding failed");
 
         // Ensure decoded data matches the original
         assert_eq!(data, decoded_data);
@@ -115,10 +113,10 @@ mod tests {
         let data = "";
 
         // Encode data
-        let encoded_image = encode(data, &mut image).expect("Encoding failed");
+        encode(data, &mut image).expect("Encoding failed");
 
         // Decode data
-        let decoded_data = decode(&encoded_image).expect("Decoding failed");
+        let decoded_data = decode(&image).expect("Decoding failed");
 
         // Ensure decoded data matches the original (empty string)
         assert_eq!(data, decoded_data);
@@ -130,10 +128,10 @@ mod tests {
         let data = "Message with delimiter test";
 
         // Encode data
-        let encoded_image = encode(data, &mut image).expect("Encoding failed");
+        encode(data, &mut image).expect("Encoding failed");
 
         // Decode data
-        let decoded_data = decode(&encoded_image).expect("Decoding failed");
+        let decoded_data = decode(&image).expect("Decoding failed");
 
         // Ensure decoded data matches the original, including delimiter handling
         assert_eq!(data, decoded_data);
