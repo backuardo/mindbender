@@ -3,9 +3,10 @@ use aes_gcm::{
     aead::{rand_core::RngCore, Aead, KeyInit, OsRng},
     Aes256Gcm, Nonce,
 };
+use base64::{engine::general_purpose, Engine};
 
-/// Encrypt plaintext data with a key using AES GCM mode
-pub fn encrypt(data: &str, key: &[u8; 32]) -> Result<Vec<u8>, ApplicationError> {
+/// Encrypt plaintext data with a key using AES GCM mode, returning a base64-encoded string
+pub fn encrypt(data: &str, key: &[u8; 32]) -> Result<String, ApplicationError> {
     let cipher = Aes256Gcm::new(key.into());
 
     // Generate random nonce
@@ -17,16 +18,22 @@ pub fn encrypt(data: &str, key: &[u8; 32]) -> Result<Vec<u8>, ApplicationError> 
         .encrypt(Nonce::from_slice(&nonce), data.as_bytes())
         .map_err(|_| ApplicationError::EncryptionError("Encryption failed".to_string()))?;
 
-    // Return nonce followed by ciphertext
+    // Concatenate nonce and ciphertext, then base64 encode
     let mut encrypted_data = nonce.to_vec();
     encrypted_data.extend_from_slice(&ciphertext);
-
-    Ok(encrypted_data)
+    Ok(general_purpose::STANDARD.encode(encrypted_data))
 }
 
-/// Decrypt encrypted data with a key using AES GCM mode
-pub fn decrypt(encrypted_data: &[u8], key: &[u8; 32]) -> Result<String, ApplicationError> {
+/// Decrypt base64-encoded data with a key using AES GCM mode
+pub fn decrypt(encoded_data: &str, key: &[u8; 32]) -> Result<String, ApplicationError> {
     let cipher = Aes256Gcm::new(key.into());
+
+    // Decode the base64-encoded data
+    let encrypted_data = general_purpose::STANDARD
+        .decode(encoded_data)
+        .map_err(|_| {
+            ApplicationError::DecryptionError("Failed to decode base64 data".to_string())
+        })?;
 
     // Separate nonce and ciphertext
     let (nonce, ciphertext) = encrypted_data.split_at(12);

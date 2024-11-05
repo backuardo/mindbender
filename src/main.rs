@@ -5,6 +5,7 @@ mod io;
 mod steganography;
 mod ui;
 
+use crate::cryptography::aes;
 use crate::steganography::lsb;
 use clap::Parser;
 use cli::{Cli, Commands};
@@ -33,23 +34,17 @@ fn run() -> Result<(), ApplicationError> {
             // Load carrier image
             let image = io::load_image(&carrier_path)?;
             // Read data from specified file
-            let data = io::read_text_file(&data_path)?;
+            let mut data = io::read_text_file(&data_path)?;
+            // Encrypt data if key provided
+            if let Some(key) = key {
+                // Convert key to 32-byte array
+                let key_bytes = cryptography::util::key_to_bytes(&key)?;
+                data = aes::encrypt(&data, &key_bytes)?;
+            }
             // Encode data into the image
             let encoded_image = lsb::encode(&data, &image)?;
             // Write encoded image to specified output path
             io::write_image_file(&encoded_image, &output_path)?;
-
-            // --- Debug
-            println!("{}", "Encode!".green());
-            println!(
-                "data_path: {}\ncarrier_path: {}\noutput_path: {}",
-                data_path.blue(),
-                carrier_path.blue(),
-                output_path.blue(),
-            );
-            if let Some(key) = key {
-                println!("key: {}", key.blue())
-            }
         }
         Commands::Decode {
             carrier_path,
@@ -59,20 +54,15 @@ fn run() -> Result<(), ApplicationError> {
             // Load the carrier image with encoded data
             let image = io::load_image(&carrier_path)?;
             // Decode message from image
-            let decoded_message = lsb::decode(&image)?;
+            let mut decoded_message = lsb::decode(&image)?;
+            // Decrypt message if key provided
+            if let Some(key) = key {
+                // Convert key to 32-byte array
+                let key_bytes = cryptography::util::key_to_bytes(&key)?;
+                decoded_message = aes::decrypt(&decoded_message, &key_bytes)?;
+            }
             // Write decoded message to specified output path
             io::write_text_file(&decoded_message, &output_path)?;
-
-            // --- Debug
-            println!("{}", "Decode!".green());
-            println!(
-                "carrier_path: {}\noutput_path: {}",
-                carrier_path.blue(),
-                output_path.blue(),
-            );
-            if let Some(key) = key {
-                println!("key: {}", key.blue())
-            }
         }
     }
 
