@@ -3,59 +3,70 @@ use crate::error::ApplicationError;
 use image::{Pixel, RgbImage};
 use rayon::prelude::*;
 
-/// Store text data in the least significant bits of an image's RGB channels
-pub fn encode(data: &str, image: &mut RgbImage) -> Result<(), ApplicationError> {
-    // Append delimiter to the data
-    let data_with_delimiter = format!("{}{}", data, '\0');
+const NULL_DELIMITER: char = '\0';
+const BITS_PER_BYTE: usize = 8;
 
-    // Ensure there is enough capacity to encode the data
+/// Encodes text data into an image using LSB (Least Significant Bit) steganography.
+///
+/// # How it works
+/// - Each character is split into 8 bits
+/// - Each bit is stored in the least significant bit of an RGB channel
+/// - A null character ('\0') is appended as a delimiter
+pub fn encode(data: &str, image: &mut RgbImage) -> Result<(), ApplicationError> {
+    let data_with_delimiter = format!("{}{}", data, NULL_DELIMITER);
+
     if !is_sufficient_capacity(&data_with_delimiter, image) {
         return Err(ApplicationError::EncodingError(
             "Image too small to encode data".to_string(),
         ));
     }
 
-    // Get the image's underlying data buffer
     let image_data = image.as_flat_samples_mut().samples;
 
-    // Process the data and image data in parallel
     image_data
-        .par_chunks_mut(8)
+        .par_chunks_mut(BITS_PER_BYTE)
         .zip(data_with_delimiter.as_bytes().par_iter())
-        .for_each(|(image_byte_chunk, &data_byte)| {
-            for (i, image_byte) in image_byte_chunk.iter_mut().enumerate() {
-                let bit = (data_byte >> (7 - i)) & 1;
-                *image_byte = (*image_byte & !1) | bit;
-            }
+        .for_each(|(chunk, &data_byte)| {
+            chunk.iter_mut().enumerate().for_each(|(i, pixel_byte)| {
+                let bit = (data_byte >> (BITS_PER_BYTE - 1 - i)) & 1;
+                *pixel_byte = (*pixel_byte & !1) | bit;
+            });
         });
 
     Ok(())
 }
 
-/// Extract text data from the least significant bits of an image's RGB channels
+/// Decodes text data from an image that was encoded using LSB steganography.
+///
+/// # How it works
+/// - Collects the least significant bit from each RGB channel
+/// - Combines bits into bytes until a null delimiter is found
+/// - Converts the bytes back into a UTF-8 string
 pub fn decode(image: &RgbImage) -> Result<String, ApplicationError> {
-    // Collect bits from each pixel's least significant bit in a specific order
-    let bits: Vec<u8> = image
-        .pixels()
-        .flat_map(|pixel| pixel.channels().iter().map(|&channel| channel & 1))
-        .collect();
+    let mut bits = Vec::with_capacity(image.width() as usize * image.height() as usize * 3);
 
-    // Convert bits to bytes, stopping at the delimiter
-    let mut bytes: Vec<u8> = Vec::new();
-    for chunk in bits.chunks(8) {
-        let byte = chunk.iter().fold(0, |acc, &bit| (acc << 1) | bit);
+    image
+        .pixels()
+        .flat_map(|pixel| pixel.channels().iter())
+        .for_each(|&channel| bits.push(channel & 1));
+
+    let mut bytes = Vec::with_capacity(bits.len() / BITS_PER_BYTE);
+    for byte_bits in bits.chunks(BITS_PER_BYTE) {
+        if byte_bits.len() != BITS_PER_BYTE {
+            break;
+        }
+
+        let byte = byte_bits.iter().fold(0u8, |acc, &bit| (acc << 1) | bit);
+
         if byte == 0 {
-            // Stop decoding when we hit the null delimiter '\0'
             break;
         }
         bytes.push(byte);
     }
 
-    // Convert bytes to a string
-    let message = String::from_utf8(bytes)
-        .map_err(|_| ApplicationError::DecodingError("Failed to decode message".to_string()))?;
-
-    Ok(message)
+    String::from_utf8(bytes).map_err(|e| {
+        ApplicationError::DecodingError(format!("Invalid UTF-8 sequence in decoded data: {}", e))
+    })
 }
 
 #[cfg(test)]
@@ -71,26 +82,18 @@ mod tests {
     fn test_encode_decode() {
         let mut image = create_blank_image(10, 10);
         let data = "Hello, World!";
-
-        // Encode data
         encode(data, &mut image).expect("Encoding failed");
-
-        // Decode data
         let decoded_data = decode(&image).expect("Decoding failed");
 
-        // Ensure decoded data matches the original
         assert_eq!(data, decoded_data);
     }
 
     #[test]
     fn test_insufficient_capacity() {
-        let mut image = create_blank_image(1, 1); // Small image with insufficient capacity
+        let mut image = create_blank_image(1, 1);
         let data = "This message is too long to fit";
-
-        // Attempt to encode data
         let result = encode(data, &mut image);
 
-        // Ensure an encoding error is returned
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err().to_string(),
@@ -102,14 +105,9 @@ mod tests {
     fn test_encode_empty_string() {
         let mut image = create_blank_image(5, 5);
         let data = "";
-
-        // Encode data
         encode(data, &mut image).expect("Encoding failed");
-
-        // Decode data
         let decoded_data = decode(&image).expect("Decoding failed");
 
-        // Ensure decoded data matches the original (empty string)
         assert_eq!(data, decoded_data);
     }
 
@@ -117,14 +115,9 @@ mod tests {
     fn test_encode_decode_with_delimiter() {
         let mut image = create_blank_image(10, 10);
         let data = "Message with delimiter test";
-
-        // Encode data
         encode(data, &mut image).expect("Encoding failed");
-
-        // Decode data
         let decoded_data = decode(&image).expect("Decoding failed");
 
-        // Ensure decoded data matches the original, including delimiter handling
         assert_eq!(data, decoded_data);
     }
 }

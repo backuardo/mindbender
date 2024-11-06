@@ -3,6 +3,7 @@ mod core;
 mod cryptography;
 mod error;
 mod steganography;
+mod ui;
 
 use crate::cryptography::{aes, util::key_to_bytes};
 use crate::steganography::lsb;
@@ -10,8 +11,7 @@ use clap::Parser;
 use cli::{Cli, Commands};
 use colored::*;
 use error::ApplicationError;
-use indicatif::{ProgressBar, ProgressStyle};
-use std::time::Duration;
+use ui::ProgressTracker;
 
 fn main() {
     if let Err(e) = run() {
@@ -21,7 +21,7 @@ fn main() {
 }
 
 fn run() -> Result<(), ApplicationError> {
-    let cli: Cli = Cli::parse();
+    let cli = Cli::parse();
 
     match cli.command {
         Commands::Encode {
@@ -30,22 +30,10 @@ fn run() -> Result<(), ApplicationError> {
             output_path,
             key,
         } => {
-            let pb = ProgressBar::new(100);
-            pb.set_style(
-                ProgressStyle::with_template("{spinner:.green} [{elapsed_precise}] {msg}")
-                    .unwrap()
-                    .tick_chars("⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"),
-            );
-            pb.enable_steady_tick(Duration::from_millis(80));
+            let tracker = ProgressTracker::new();
 
             // Load carrier image
-            pb.set_message(
-                "Loading carrier image..."
-                    .bright_green()
-                    .bold()
-                    .italic()
-                    .to_string(),
-            );
+            tracker.update("Loading carrier image...");
             let mut image = if core::image::is_lossless(&carrier_path)? {
                 core::image::load_image(&carrier_path)?
             } else {
@@ -53,139 +41,65 @@ fn run() -> Result<(), ApplicationError> {
                     "{}",
                     "Warning: Carrier image is lossy. Converting to lossless format...".yellow()
                 );
-                // Convert to lossless format (PNG) and load the image
                 let temp_output = format!("{}.png", output_path);
                 core::image::convert_to_lossless(&carrier_path, &temp_output)?;
                 core::image::load_image(&temp_output)?
             };
-            pb.inc(30);
 
-            // Read data from specified file
-            pb.set_message(
-                "Reading data file..."
-                    .bright_green()
-                    .bold()
-                    .italic()
-                    .to_string(),
-            );
+            tracker.update("Reading data file...");
             let data = core::file::read_text_file(&data_path)?;
-            pb.inc(20);
 
-            // Encrypt data if key provided
-            pb.set_message(
-                "Processing data..."
-                    .bright_green()
-                    .bold()
-                    .italic()
-                    .to_string(),
-            );
             let data = if let Some(key) = key {
+                tracker.update("Encrypting data...");
                 let key_bytes = key_to_bytes(&key)?;
                 aes::encrypt(&data, &key_bytes)?
             } else {
                 data
             };
-            pb.inc(20);
 
             // Encode data into the image
-            pb.set_message(
-                "Encoding data into image..."
-                    .bright_green()
-                    .bold()
-                    .italic()
-                    .to_string(),
-            );
+            tracker.update("Encoding data into image...");
             lsb::encode(&data, &mut image)?;
-            pb.inc(20);
 
-            // Ensure output path has a valid image extension
-            pb.set_message(
-                "Saving encoded image..."
-                    .bright_green()
-                    .bold()
-                    .italic()
-                    .to_string(),
-            );
+            // Save the encoded image
+            tracker.update("Saving encoded image...");
             let output_path = if !core::image::has_valid_image_extension(&output_path) {
-                // If not, default to PNG
                 format!("{}.png", output_path)
             } else {
                 output_path
             };
-            // Write encoded image to specified output path
             core::image::write_image_file(&image, &output_path)?;
-            pb.finish_with_message(
-                "Encoding completed successfully."
-                    .bold()
-                    .green()
-                    .to_string(),
-            );
+
+            tracker.finish_with_message("Encoding completed successfully.");
         }
+
         Commands::Decode {
             carrier_path,
             output_path,
             key,
         } => {
-            let pb = ProgressBar::new(100);
-            pb.set_style(
-                ProgressStyle::with_template("{spinner:.green} [{elapsed_precise}] {msg}")
-                    .unwrap()
-                    .tick_chars("⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"),
-            );
-            pb.enable_steady_tick(Duration::from_millis(80));
+            let tracker = ProgressTracker::new();
 
-            // Load the carrier image with encoded data
-            pb.set_message(
-                "Loading carrier image..."
-                    .bright_green()
-                    .bold()
-                    .italic()
-                    .to_string(),
-            );
+            // Load the carrier image
+            tracker.update("Loading carrier image...");
             let image = core::image::load_image(&carrier_path)?;
-            pb.inc(30);
 
-            // Decode message from image
-            pb.set_message(
-                "Decoding data from image..."
-                    .bright_green()
-                    .bold()
-                    .italic()
-                    .to_string(),
-            );
+            // Decode message
+            tracker.update("Decoding data from image...");
             let mut decoded_message = lsb::decode(&image)?;
-            pb.inc(40);
 
-            // Decrypt message if key provided
-            pb.set_message(
-                "Processing data..."
-                    .bright_green()
-                    .bold()
-                    .italic()
-                    .to_string(),
-            );
+            // Process decoded data
             if let Some(key) = key {
-                // Convert key to 32-byte array
+                tracker.update("Decrypting data...");
                 let key_bytes = key_to_bytes(&key)?;
                 decoded_message = aes::decrypt(&decoded_message, &key_bytes)?;
             }
-            pb.inc(20);
 
-            // Write decoded message to specified output path
-            pb.set_message(
-                "Saving decoded message..."
-                    .bright_green()
-                    .bold()
-                    .italic()
-                    .to_string(),
-            );
+            // Save decoded message
+            tracker.update("Saving decoded message...");
             core::file::write_text_file(&decoded_message, &output_path)?;
-            pb.finish_with_message(
-                "Decoding completed successfully."
-                    .green()
-                    .bold()
-                    .to_string(),
-            );
+
+            tracker.finish_with_message("Decoding completed successfully.");
         }
     }
 

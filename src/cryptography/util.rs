@@ -1,17 +1,77 @@
 use crate::error::ApplicationError;
+use colored::*;
 
+const KEY_SIZE: usize = 32;
+
+/// Convert a string key into a fixed 32-byte array, suitable for AES-256 encryption
 pub fn key_to_bytes(key: &str) -> Result<[u8; 32], ApplicationError> {
-    // Convert key string to bytes, padding or truncating to fit 32 bytes
-    let mut key_bytes = [0u8; 32];
-    let key_as_bytes = key.as_bytes();
+    let key_bytes = key.as_bytes();
 
-    if key_as_bytes.len() > 32 {
-        return Err(ApplicationError::EncryptionError(
-            "Key must be 32 bytes or fewer".to_string(),
-        ));
+    if key_bytes.len() > KEY_SIZE {
+        return Err(ApplicationError::EncryptionError(format!(
+            "Key length {} exceeds maximum of {} bytes",
+            key_bytes.len(),
+            KEY_SIZE
+        )));
     }
 
-    // Copy key bytes into 32-byte array, padding with zeros if necessary
-    key_bytes[..key_as_bytes.len()].copy_from_slice(key_as_bytes);
-    Ok(key_bytes)
+    if key_bytes.len() < KEY_SIZE {
+        println!("{}", "Warning: insecure key length".yellow());
+    }
+
+    let mut result = [0u8; KEY_SIZE];
+    result[..key_bytes.len()].copy_from_slice(key_bytes);
+    Ok(result)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_exact_length_key() {
+        let key = "12345678901234567890123456789012";
+        let result = key_to_bytes(key).unwrap();
+
+        assert_eq!(result.len(), KEY_SIZE);
+        assert_eq!(&result, key.as_bytes());
+    }
+
+    #[test]
+    fn test_short_key() {
+        let key = "short-key";
+        let result = key_to_bytes(key).unwrap();
+
+        assert_eq!(result.len(), KEY_SIZE);
+        assert_eq!(&result[..key.len()], key.as_bytes());
+        assert!(result[key.len()..].iter().all(|&b| b == 0));
+    }
+
+    #[test]
+    fn test_empty_key() {
+        let key = "";
+        let result = key_to_bytes(key).unwrap();
+
+        assert_eq!(result.len(), KEY_SIZE);
+        assert!(result.iter().all(|&b| b == 0));
+    }
+
+    #[test]
+    fn test_too_long_key() {
+        let key = "12345678901234567890123456789012X";
+        let result = key_to_bytes(key);
+
+        assert!(result.is_err());
+        assert!(matches!(result, Err(ApplicationError::EncryptionError(_))));
+    }
+
+    #[test]
+    fn test_unicode_key() {
+        let key = "🔑";
+        let result = key_to_bytes(key).unwrap();
+
+        assert_eq!(result.len(), KEY_SIZE);
+        assert_eq!(&result[..4], key.as_bytes());
+        assert!(result[4..].iter().all(|&b| b == 0));
+    }
 }
