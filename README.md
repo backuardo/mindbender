@@ -59,7 +59,7 @@ MindBender automatically handles lossy images by converting them to a lossless f
 
 MindBender is dual-licensed under either:
 
--   MIT License
--   Apache License, Version 2.0
+-   [MIT license](LICENSE-MIT.md)
+-   [Apache License, Version 2.0](LICENSE-APACHE.md)
 
 You may choose to use either license.
