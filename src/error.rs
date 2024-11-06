@@ -3,9 +3,6 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum ApplicationError {
-    #[error("Command-line parsing error: {0}")]
-    CliError(String),
-
     #[error("Invalid path error: {0}")]
     InvalidPathError(String),
 

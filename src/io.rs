@@ -1,5 +1,4 @@
 use crate::error::ApplicationError;
-use colored::*;
 use image::{ImageFormat, ImageReader, RgbImage};
 use std::fs::{self, File};
 use std::io::{Read, Write};
@@ -30,21 +29,34 @@ pub fn has_valid_image_extension(file_path: &str) -> bool {
 }
 
 /// Determine whether a file is lossless
-fn is_lossless(file_path: &str) -> Result<bool, ApplicationError> {
-    let format = ImageFormat::from_path(file_path)?;
+pub fn is_lossless(file_path: &str) -> Result<bool, ApplicationError> {
+    let format = ImageFormat::from_path(file_path)
+        .map_err(|_| ApplicationError::InvalidPathError("Unsupported image format".to_string()))?;
+
     match format {
-        ImageFormat::WebP => {
-            // Assume lossy; specific library check required for lossless WebP detection
-            println!("{}", "Warning: WebP detected; assuming lossy".yellow());
-            Ok(false)
-        }
         ImageFormat::Png | ImageFormat::Bmp | ImageFormat::Tiff => Ok(true),
-        ImageFormat::Jpeg | ImageFormat::Gif => Ok(false),
+        ImageFormat::Jpeg | ImageFormat::Gif | ImageFormat::WebP => Ok(false),
         _ => Err(ApplicationError::InvalidPathError(format!(
             "Unsupported file type '{:?}'",
             format
         ))),
     }
+}
+
+/// Convert a lossy image to a lossless format (PNG)
+pub fn convert_to_lossless(
+    file_path: &str,
+    output_path: &str,
+) -> Result<RgbImage, ApplicationError> {
+    // Load the image
+    let image = load_image(file_path)?;
+
+    // Save image as PNG to output path
+    image
+        .save_with_format(output_path, ImageFormat::Png)
+        .map_err(ApplicationError::ImageError)?;
+
+    Ok(image)
 }
 
 /// Read text data from the specified file path
@@ -122,10 +134,50 @@ mod tests {
     fn test_is_lossless_png() {
         let dir = tempdir().unwrap();
         let file_path = dir.path().join("test_image.png");
-        File::create(&file_path).expect("Failed to create test image");
+        // Create a blank PNG image
+        let image = RgbImage::new(10, 10);
+        image.save(&file_path).expect("Failed to save image");
 
-        // Manually set up an ImageFormat since the function only checks extensions
         let result = is_lossless(file_path.to_str().unwrap());
+        assert_eq!(result.unwrap(), true);
+    }
+
+    #[test]
+    fn test_is_lossless_jpeg() {
+        let dir = tempdir().unwrap();
+        let file_path = dir.path().join("test_image.jpg");
+        // Create a blank JPEG image
+        let image = RgbImage::new(10, 10);
+        image
+            .save_with_format(&file_path, ImageFormat::Jpeg)
+            .expect("Failed to save image");
+
+        let result = is_lossless(file_path.to_str().unwrap());
+        assert_eq!(result.unwrap(), false);
+    }
+
+    #[test]
+    fn test_convert_to_lossless() {
+        let dir = tempdir().unwrap();
+        let input_path = dir.path().join("test_image.jpg");
+        let output_path = dir.path().join("converted_image.png");
+
+        // Create a blank JPEG image
+        let image = RgbImage::new(10, 10);
+        image
+            .save_with_format(&input_path, ImageFormat::Jpeg)
+            .expect("Failed to save image");
+
+        // Convert to PNG
+        let converted_image =
+            convert_to_lossless(input_path.to_str().unwrap(), output_path.to_str().unwrap())
+                .expect("Conversion failed");
+
+        assert!(output_path.exists());
+        assert_eq!(converted_image.dimensions(), (10, 10));
+
+        // Check if the converted image is lossless
+        let result = is_lossless(output_path.to_str().unwrap());
         assert_eq!(result.unwrap(), true);
     }
 
