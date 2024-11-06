@@ -1,8 +1,7 @@
+use super::util::is_sufficient_capacity;
 use crate::error::ApplicationError;
 use image::{Pixel, RgbImage};
 use rayon::prelude::*;
-
-use super::util::is_sufficient_capacity;
 
 /// Store text data in the least significant bits of an image's RGB channels
 pub fn encode(data: &str, image: &mut RgbImage) -> Result<(), ApplicationError> {
@@ -24,7 +23,6 @@ pub fn encode(data: &str, image: &mut RgbImage) -> Result<(), ApplicationError> 
         .par_chunks_mut(8)
         .zip(data_with_delimiter.as_bytes().par_iter())
         .for_each(|(image_byte_chunk, &data_byte)| {
-            // Process each bit of the data byte
             for (i, image_byte) in image_byte_chunk.iter_mut().enumerate() {
                 let bit = (data_byte >> (7 - i)) & 1;
                 *image_byte = (*image_byte & !1) | bit;
@@ -65,7 +63,6 @@ mod tests {
     use super::*;
     use image::{Rgb, RgbImage};
 
-    /// Utility function to create a blank RgbImage of specified dimensions
     fn create_blank_image(width: u32, height: u32) -> RgbImage {
         RgbImage::from_pixel(width, height, Rgb([0, 0, 0]))
     }

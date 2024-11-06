@@ -57,7 +57,7 @@ mod tests {
 
     #[test]
     fn test_encrypt_decrypt() {
-        let key = [0u8; 32]; // Use a fixed key for testing
+        let key = [0u8; 32];
         let data = "Test message for encryption";
 
         // Encrypt the data
@@ -88,8 +88,8 @@ mod tests {
 
     #[test]
     fn test_encrypt_empty_string() {
-        let key = [0u8; 32]; // Fixed key for testing
-        let data = ""; // Empty string
+        let key = [0u8; 32];
+        let data = "";
 
         // Encrypt the empty string
         let encrypted_data = encrypt(data, &key).expect("Encryption failed");

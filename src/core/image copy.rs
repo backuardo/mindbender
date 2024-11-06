@@ -1,19 +1,7 @@
+use super::file::{ensure_parent_directory, validate_path};
 use crate::error::ApplicationError;
 use image::{ImageFormat, ImageReader, RgbImage};
-use std::fs::{self, File};
-use std::io::{Read, Write};
 use std::path::Path;
-
-/// Validate that a file path is valid
-pub fn validate_path(file_path: &str) -> Result<(), ApplicationError> {
-    if !fs::metadata(file_path)?.is_file() {
-        return Err(ApplicationError::InvalidPathError(format!(
-            "Path '{}' is not a file.",
-            file_path
-        )));
-    }
-    Ok(())
-}
 
 /// Validate that the file path has a supported image extension
 pub fn has_valid_image_extension(file_path: &str) -> bool {
@@ -59,15 +47,6 @@ pub fn convert_to_lossless(
     Ok(image)
 }
 
-/// Read text data from the specified file path
-pub fn read_text_file(file_path: &str) -> Result<String, ApplicationError> {
-    let mut file = File::open(file_path).map_err(ApplicationError::IoError)?;
-    let mut content = String::new();
-    file.read_to_string(&mut content)
-        .map_err(ApplicationError::IoError)?;
-    Ok(content)
-}
-
 /// Load an image and convert it to RgbImage format
 pub fn load_image(file_path: &str) -> Result<RgbImage, ApplicationError> {
     validate_path(file_path)?;
@@ -78,14 +57,6 @@ pub fn load_image(file_path: &str) -> Result<RgbImage, ApplicationError> {
     Ok(image)
 }
 
-/// Ensures that the parent directory exists by creating it if it doesn't
-pub fn ensure_parent_directory(file_path: &str) -> Result<(), ApplicationError> {
-    if let Some(parent) = Path::new(file_path).parent() {
-        fs::create_dir_all(parent).map_err(ApplicationError::IoError)?;
-    }
-    Ok(())
-}
-
 /// Write image data to the specified file path
 pub fn write_image_file(image: &RgbImage, file_path: &str) -> Result<(), ApplicationError> {
     ensure_parent_directory(file_path)?;
@@ -94,15 +65,6 @@ pub fn write_image_file(image: &RgbImage, file_path: &str) -> Result<(), Applica
     image
         .save_with_format(file_path, format)
         .map_err(ApplicationError::ImageError)
-}
-
-/// Write text data to the specified file path
-pub fn write_text_file(text: &str, file_path: &str) -> Result<(), ApplicationError> {
-    ensure_parent_directory(file_path)?;
-
-    let mut file = File::create(file_path).map_err(ApplicationError::IoError)?;
-    file.write_all(text.as_bytes())
-        .map_err(ApplicationError::IoError)
 }
 
 #[cfg(test)]
@@ -182,17 +144,6 @@ mod tests {
     }
 
     #[test]
-    fn test_read_text_file() {
-        let dir = tempdir().unwrap();
-        let file_path = dir.path().join("test_file.txt");
-        let content = "Hello, world!";
-        fs::write(&file_path, content).expect("Failed to write to test file");
-
-        let result = read_text_file(file_path.to_str().unwrap()).unwrap();
-        assert_eq!(result, content);
-    }
-
-    #[test]
     fn test_load_image() {
         let dir = tempdir().unwrap();
         let file_path = dir.path().join("test_image.png");
@@ -224,18 +175,5 @@ mod tests {
         let result = write_image_file(&image, file_path.to_str().unwrap());
         assert!(result.is_ok());
         assert!(file_path.exists());
-    }
-
-    #[test]
-    fn test_write_text_file() {
-        let dir = tempdir().unwrap();
-        let file_path = dir.path().join("output_text.txt");
-        let content = "Test text content";
-
-        let result = write_text_file(content, file_path.to_str().unwrap());
-        assert!(result.is_ok());
-
-        let read_content = fs::read_to_string(file_path).expect("Failed to read written text file");
-        assert_eq!(read_content, content);
     }
 }

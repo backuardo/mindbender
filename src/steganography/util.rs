@@ -1,13 +1,5 @@
 use image::RgbImage;
 
-// pub fn image_capacity_bits(image: &RgbImage) -> usize {
-//     image.as_flat_samples().samples.len() // Each byte in the image data buffer can store one bit
-// }
-
-// pub fn image_capacity_bytes(image: &RgbImage) -> usize {
-//     image_capacity_bits(image) / 8 // Number of full bytes that can be stored
-// }
-
 pub fn is_sufficient_capacity(text: &str, image: &RgbImage) -> bool {
     // Include the delimiter in the data length
     let data_with_delimiter = format!("{}{}", text, '\0');
