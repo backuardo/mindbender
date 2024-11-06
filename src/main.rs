@@ -70,7 +70,10 @@ fn run() -> Result<(), ApplicationError> {
             };
             core::image::write_image_file(&image, &output_path)?;
 
-            tracker.finish_with_message("Encoding completed successfully.");
+            tracker.finish_with_message(&format!(
+                "Encoding completed successfully => {}",
+                output_path
+            ));
         }
 
         Commands::Decode {
@@ -99,7 +102,10 @@ fn run() -> Result<(), ApplicationError> {
             tracker.update("Saving decoded message...");
             core::file::write_text_file(&decoded_message, &output_path)?;
 
-            tracker.finish_with_message("Decoding completed successfully.");
+            tracker.finish_with_message(&format!(
+                "Decoding completed successfully => {}",
+                output_path
+            ));
         }
     }
 
