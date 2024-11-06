@@ -5,13 +5,9 @@
 
 *A steganography CLI tool for encrypting and hiding text within images.*
 
----
-
 ## Introduction
 
 **MindBender** is a command-line tool that allows you to hide (and retrieve) text data within images using steganography techniques. It supports optional encryption for added security, ensuring your hidden messages remain confidential.
-
----
 
 ## Features
 
@@ -20,8 +16,6 @@
 - **Automatic Lossy Image Conversion**: Converts lossy images to lossless formats automatically.
 - **User-Friendly Interface**: Clear commands and helpful messages.
 - **Cross-Platform Support**: Works on Windows, macOS, and Linux.
-
----
 
 ## Usage
 
@@ -58,12 +52,8 @@ mindbender decode [OPTIONS] <CARRIER_FILE_PATH>
 mindbender decode hidden.png --output-path revealed_message.txt --key "my_secret_key"
 ```
 
----
-
 ## Configuration
 MindBender automatically handles lossy images by converting them to a lossless format (PNG). You can provide a custom output path and encryption key as needed.
-
----
 
 ## License
 
