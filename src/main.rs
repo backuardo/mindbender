@@ -32,7 +32,6 @@ fn run() -> Result<(), ApplicationError> {
         } => {
             let tracker = ProgressTracker::new();
 
-            // Load carrier image
             tracker.update("Loading carrier image...");
             let mut image = if core::image::is_lossless(&carrier_path)? {
                 core::image::load_image(&carrier_path)?
@@ -57,11 +56,9 @@ fn run() -> Result<(), ApplicationError> {
                 data
             };
 
-            // Encode data into the image
             tracker.update("Encoding data into image...");
             lsb::encode(&data, &mut image)?;
 
-            // Save the encoded image
             tracker.update("Saving encoded image...");
             let output_path = if !core::image::has_valid_image_extension(&output_path) {
                 format!("{}.png", output_path)
@@ -83,22 +80,18 @@ fn run() -> Result<(), ApplicationError> {
         } => {
             let tracker = ProgressTracker::new();
 
-            // Load the carrier image
             tracker.update("Loading carrier image...");
             let image = core::image::load_image(&carrier_path)?;
 
-            // Decode message
             tracker.update("Decoding data from image...");
             let mut decoded_message = lsb::decode(&image)?;
 
-            // Process decoded data
             if let Some(key) = key {
                 tracker.update("Decrypting data...");
                 let key_bytes = key_to_bytes(&key)?;
                 decoded_message = aes::decrypt(&decoded_message, &key_bytes)?;
             }
 
-            // Save decoded message
             tracker.update("Saving decoded message...");
             core::file::write_text_file(&decoded_message, &output_path)?;
 
