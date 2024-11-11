@@ -46,7 +46,7 @@ fn run() -> Result<(), ApplicationError> {
             };
 
             tracker.update("Reading data file...");
-            let data = core::file::read_text_file(&data_path)?;
+            let data = core::file::read_text(&data_path)?;
 
             let data = if let Some(key) = key {
                 tracker.update("Encrypting data...");
@@ -93,7 +93,7 @@ fn run() -> Result<(), ApplicationError> {
             }
 
             tracker.update("Saving decoded message...");
-            core::file::write_text_file(&decoded_message, &output_path)?;
+            core::file::write_text(&decoded_message, &output_path)?;
 
             tracker.finish_with_message(&format!(
                 "Decoding completed successfully => {}",

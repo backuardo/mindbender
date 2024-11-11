@@ -14,9 +14,17 @@ pub fn validate_path(file_path: &str) -> Result<(), ApplicationError> {
     }
 }
 
+// TODO: this should support reading from stdin
 /// Read text data from the specified file path
-pub fn read_text_file(file_path: &str) -> Result<String, ApplicationError> {
+pub fn read_text(file_path: &str) -> Result<String, ApplicationError> {
     fs::read_to_string(file_path).map_err(ApplicationError::IoError)
+}
+
+// TODO: this should support printing to stdout
+/// Write text data to the specified file path
+pub fn write_text(text: &str, file_path: &str) -> Result<(), ApplicationError> {
+    ensure_parent_directory(file_path)?;
+    fs::write(file_path, text).map_err(ApplicationError::IoError)
 }
 
 /// Ensures that the parent directory exists by creating it if it doesn't
@@ -25,12 +33,6 @@ pub fn ensure_parent_directory(file_path: &str) -> Result<(), ApplicationError> 
         fs::create_dir_all(parent).map_err(ApplicationError::IoError)?;
     }
     Ok(())
-}
-
-/// Write text data to the specified file path
-pub fn write_text_file(text: &str, file_path: &str) -> Result<(), ApplicationError> {
-    ensure_parent_directory(file_path)?;
-    fs::write(file_path, text).map_err(ApplicationError::IoError)
 }
 
 #[cfg(test)]
@@ -59,12 +61,12 @@ mod tests {
     }
 
     #[test]
-    fn test_read_text_file() {
+    fn test_read_text() {
         let dir = tempdir().unwrap();
         let file_path = dir.path().join("test_file.txt");
         let content = "Hello, world!";
         fs::write(&file_path, content).expect("Failed to write to test file");
-        let result = read_text_file(file_path.to_str().unwrap()).unwrap();
+        let result = read_text(file_path.to_str().unwrap()).unwrap();
 
         assert_eq!(result, content);
     }
@@ -80,11 +82,11 @@ mod tests {
     }
 
     #[test]
-    fn test_write_text_file() {
+    fn test_write_text() {
         let dir = tempdir().unwrap();
         let file_path = dir.path().join("output_text.txt");
         let content = "Test text content";
-        let result = write_text_file(content, file_path.to_str().unwrap());
+        let result = write_text(content, file_path.to_str().unwrap());
 
         assert!(result.is_ok());
 

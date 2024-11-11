@@ -29,6 +29,7 @@ pub struct Cli {
     pub command: Commands,
 }
 
+// TODO: commands should support piping (e.g., "-" for stdin or stdout)
 #[derive(Subcommand)]
 pub enum Commands {
     /// Encode a message into an image
