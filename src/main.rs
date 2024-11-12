@@ -23,7 +23,15 @@ fn main() {
 fn run() -> Result<(), ApplicationError> {
     let cli = Cli::parse();
 
-    match cli.command {
+    // If no commands provided, launch the TUI
+    if cli.command.is_none() {
+        println!("{}", "Launch TUI...".purple());
+        return Ok(());
+    }
+
+    // Otherwise, unwrap command and handle CLI mode
+    match cli.command.unwrap() {
+        // TODO: this logic should be extracted and used by both the CLI and TUI
         Commands::Encode {
             data_path,
             carrier_path,
@@ -73,6 +81,7 @@ fn run() -> Result<(), ApplicationError> {
             ));
         }
 
+        // TODO: this logic should be extracted and used by both the CLI and TUI
         Commands::Decode {
             carrier_path,
             output_path,

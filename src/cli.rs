@@ -26,7 +26,7 @@ pub struct Cli {
 
     /// Subcommand to execute
     #[command(subcommand)]
-    pub command: Commands,
+    pub command: Option<Commands>,
 }
 
 // TODO: commands should support piping (e.g., "-" for stdin or stdout)
@@ -134,7 +134,7 @@ mod tests {
 
         let cli = Cli::parse_from(args);
 
-        match cli.command {
+        match cli.command.unwrap() {
             Commands::Encode { output_path, .. } => {
                 assert_eq!(output_path, DEFAULT_ENCODED_OUTPUT);
             }
@@ -163,11 +163,22 @@ mod tests {
 
         let cli = Cli::parse_from(args);
 
-        match cli.command {
+        match cli.command.unwrap() {
             Commands::Encode { key, .. } => {
                 assert_eq!(key, Some("secret".to_string()));
             }
             _ => panic!("Wrong command parsed"),
         }
+    }
+
+    #[test]
+    fn test_no_arguments_triggers_tui() {
+        let args = ["program"];
+        let cli = Cli::parse_from(args);
+
+        assert!(
+            cli.command.is_none(),
+            "Expected no command, indicating TUI should launch."
+        );
     }
 }
