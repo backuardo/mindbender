@@ -20,6 +20,9 @@ fn main() {
     }
 }
 
+// The logic in encode and decode blocks will be extracted into core/operations,
+// as functions that accept a `ProgressTracker`. This way, the logic can be shared
+// between the TUI and the CLI (each with their own `ProgressTracker` implementations).
 fn run() -> Result<(), ApplicationError> {
     let cli = Cli::parse();
 
