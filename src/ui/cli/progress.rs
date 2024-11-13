@@ -1,3 +1,4 @@
+use crate::core::operations::Progress;
 use colored::*;
 use indicatif::{ProgressBar, ProgressStyle};
 use std::time::Duration;
@@ -21,13 +22,15 @@ impl ProgressTracker {
 
         Self { progress }
     }
+}
 
-    pub fn update(&self, message: &str) {
+impl Progress for ProgressTracker {
+    fn update(&self, message: &str) {
         let styled_message = message.bright_green().bold().italic().to_string();
         self.progress.set_message(styled_message);
     }
 
-    pub fn finish_with_message(&self, message: &str) {
+    fn finish_with_message(&self, message: &str) {
         self.progress
             .finish_with_message(message.green().bold().to_string());
     }
