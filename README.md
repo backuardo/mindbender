@@ -3,25 +3,33 @@
 
 [![License: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)](#license)
 
-*A steganography CLI tool for encrypting and hiding text within images.*
+*A steganography tool for encrypting and hiding text within images.*
 
 ## Introduction
 
-**Mindbender** is a command-line tool that allows you to hide (and retrieve) text data within images using steganography techniques. It supports optional encryption for added security, ensuring your hidden messages remain confidential.
+**Mindbender** is a tool for hiding (and retrieving) text data within images using steganography techniques. It supports optional encryption for added security, ensuring your hidden messages remain confidential. The tool can be used either through a command-line interface or an interactive terminal user interface.
 
 ## Features
 
 - **Steganography Encoding and Decoding**: Hide text data within images.
 - **Encryption Support**: Optional AES-256 encryption for secure data.
 - **Automatic Lossy Image Conversion**: Converts lossy images to lossless formats automatically.
-- **User-Friendly Interface**: Clear commands and helpful messages.
-- **Cross-Platform Support**: Works on Windows, macOS, and Linux.
+- **Dual Interface**: Choose between CLI or TUI modes
 
 ## Usage
 
+### Terminal User Interface (TUI)
+
+Launch the interactive TUI by running the command without any arguments:
+```
+mindbender
+```
+
+### Command-Line Interface (CLI)
+
 Mindbender provides `encode` and `decode` commands.
 
-### Encode a message
+#### Encode a message
 ```
 mindbender encode [OPTIONS] <DATA_FILE_PATH> <CARRIER_FILE_PATH>
 ```
@@ -37,7 +45,7 @@ mindbender encode [OPTIONS] <DATA_FILE_PATH> <CARRIER_FILE_PATH>
 mindbender encode secret_message.txt carrier.jpg --output-path hidden.png --key "my_secret_key"
 ```
 
-### Decode a message
+#### Decode a message
 ```
 mindbender decode [OPTIONS] <CARRIER_FILE_PATH>
 ```
