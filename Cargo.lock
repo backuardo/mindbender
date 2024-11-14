@@ -907,6 +907,7 @@ dependencies = [
  "base64",
  "clap",
  "colored",
+ "crossterm",
  "image",
  "indicatif",
  "predicates",

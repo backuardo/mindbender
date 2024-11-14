@@ -17,22 +17,22 @@ fn main() {
     }
 }
 
+/// Parse command-line arguments and delegate to either the CLI or TUI handler
+/// based on whether specific commands were provided.
 fn run() -> Result<(), ApplicationError> {
     let cli = Cli::parse();
 
     match cli.command {
-        None => launch_tui(),
-        Some(command) => handle_cli(command),
+        None => handle_tui_mode(),                 // No args present => TUI
+        Some(command) => handle_cli_mode(command), // Args present => CLI
     }
 }
 
-fn launch_tui() -> Result<(), ApplicationError> {
-    println!("{}", "Launch TUI...".purple());
-    // TODO: Call into TUI module
-    Ok(())
+fn handle_tui_mode() -> Result<(), ApplicationError> {
+    ui::tui::launch_tui()
 }
 
-fn handle_cli(command: cli::Commands) -> Result<(), ApplicationError> {
+fn handle_cli_mode(command: cli::Commands) -> Result<(), ApplicationError> {
     use cli::Commands;
     use ui::cli::progress::ProgressTracker;
 
