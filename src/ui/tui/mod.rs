@@ -43,7 +43,7 @@ fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>) -> io::Resu
         terminal.draw(|frame| {
             let area = frame.area();
             let hello = Paragraph::new("Mindbender\nPress 'q' to quit.")
-                .style(Style::default().fg(Color::Cyan))
+                .style(Style::default().fg(Color::Green))
                 .alignment(Alignment::Center);
             frame.render_widget(hello, area);
         })?;
