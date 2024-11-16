@@ -42,8 +42,8 @@ fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>) -> io::Resu
         // Draw UI
         terminal.draw(|frame| {
             let area = frame.area();
-            let hello = Paragraph::new("Mindbender\nPress 'q' to quit.")
-                .style(Style::default().fg(Color::Green))
+            let hello = Paragraph::new("Mindbender Steganography\nPress 'q' to quit.")
+                .style(Style::default().fg(Color::DarkGray))
                 .alignment(Alignment::Center);
             frame.render_widget(hello, area);
         })?;
