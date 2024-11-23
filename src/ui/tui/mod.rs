@@ -5,12 +5,13 @@ use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
+use indicatif::{ProgressBar, ProgressStyle};
 use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout},
     prelude::*,
     style::{Color, Modifier, Style},
     text::Line,
-    widgets::{Block, Borders, Gauge, Paragraph, Scrollbar, ScrollbarOrientation},
+    widgets::{Block, Borders, Paragraph, Scrollbar, ScrollbarOrientation},
     Terminal,
 };
 use std::{
@@ -18,15 +19,12 @@ use std::{
     path::{Path, PathBuf},
     sync::{Arc, Mutex},
     thread,
-    time::{Duration, Instant},
+    time::Duration,
 };
 use tui_tree_widget::{Tree, TreeItem, TreeState};
 
-const SPLASH_DURATION: Duration = Duration::from_secs(3);
-
 #[derive(PartialEq, Clone, Copy)]
 enum AppState {
-    Splash,
     Main,
     FileSelect(FileSelectType),
     KeyInput,
@@ -87,22 +85,57 @@ struct FileExplorer {
     tree_state: TreeState<String>,
     tree_items: Vec<TreeItem<'static, String>>,
     current_path: PathBuf,
+    file_type: FileSelectType,
+    operation: OperationType,
 }
-
 impl FileExplorer {
-    fn new() -> io::Result<Self> {
+    fn new(file_type: FileSelectType, operation: OperationType) -> io::Result<Self> {
         let current_path = std::env::current_dir()?;
-        println!("Starting path: {:?}", current_path); // Debug
         let mut explorer = Self {
             tree_state: TreeState::default(),
             tree_items: Vec::new(),
             current_path,
+            file_type,
+            operation,
         };
         explorer.refresh_entries()?;
+
+        // Set initial selection to first item
+        if !explorer.tree_items.is_empty() {
+            explorer
+                .tree_state
+                .select(vec![explorer.tree_items[0].identifier().to_string()]);
+        }
+
         Ok(explorer)
     }
 
-    fn build_tree_items(path: &Path) -> io::Result<Vec<TreeItem<'static, String>>> {
+    fn is_valid_file(&self, path: &Path) -> bool {
+        match (self.file_type, self.operation) {
+            (FileSelectType::Data, OperationType::Encode) => {
+                // For data file, only show text files
+                path.is_dir() || path.extension().map_or(false, |ext| ext == "txt")
+            }
+            (FileSelectType::Carrier, OperationType::Encode) => {
+                // For carrier image in encode mode, show all image files
+                path.is_dir()
+                    || path.extension().map_or(false, |ext| {
+                        let ext = ext.to_string_lossy().to_lowercase();
+                        matches!(
+                            ext.as_str(),
+                            "png" | "jpg" | "jpeg" | "bmp" | "webp" | "tiff"
+                        )
+                    })
+            }
+            (FileSelectType::Carrier, OperationType::Decode) => {
+                // For decode mode, only show PNG files as they contain the hidden message
+                path.is_dir() || path.extension().map_or(false, |ext| ext == "png")
+            }
+            _ => false,
+        }
+    }
+
+    fn build_tree_items(&self, path: &Path) -> io::Result<Vec<TreeItem<'static, String>>> {
         let mut items = Vec::new();
 
         // Add parent directory if not at root
@@ -110,7 +143,10 @@ impl FileExplorer {
             items.push(TreeItem::new_leaf("../".to_string(), "../"));
         }
 
-        let mut entries: Vec<_> = fs::read_dir(path)?.filter_map(|entry| entry.ok()).collect();
+        let mut entries: Vec<_> = fs::read_dir(path)?
+            .filter_map(|entry| entry.ok())
+            .filter(|entry| self.is_valid_file(&entry.path()))
+            .collect();
 
         entries.sort_by(|a, b| {
             let a_is_dir = a.file_type().map(|ft| ft.is_dir()).unwrap_or(false);
@@ -130,43 +166,40 @@ impl FileExplorer {
                 .to_string_lossy()
                 .to_string();
 
+            // Add file type indicators and additional info
             let display_text = if entry_path.is_dir() {
                 format!("📁 {}", file_name)
             } else {
-                format!("📄 {}", file_name)
+                let icon = match entry_path.extension().and_then(|e| e.to_str()) {
+                    Some("txt") => "📄",
+                    Some("png") => "🖼️",
+                    Some("jpg" | "jpeg") => "📸",
+                    _ => "📄",
+                };
+                format!("{} {}", icon, file_name)
             };
 
-            if entry_path.is_dir() {
-                let children = Self::build_tree_items(&entry_path)?;
-                items.push(
-                    TreeItem::new(
-                        display_text.clone(), // Use display text as identifier
-                        display_text,         // And as display text
-                        children,
-                    )
-                    .expect("unique identifiers"),
-                );
+            let item = if entry_path.is_dir() {
+                let children = self.build_tree_items(&entry_path)?;
+                TreeItem::new(file_name.clone(), display_text, children)
             } else {
-                items.push(TreeItem::new_leaf(
-                    display_text.clone(), // Use display text as identifier
-                    display_text,         // And as display text
-                ));
-            }
+                Ok(TreeItem::new_leaf(file_name.clone(), display_text))
+            };
+
+            items.push(item.expect("unique identifiers"));
         }
 
         Ok(items)
     }
 
     fn refresh_entries(&mut self) -> io::Result<()> {
-        println!("Refreshing entries for path: {:?}", self.current_path); // Debug
-        self.tree_items = Self::build_tree_items(&self.current_path)?;
+        self.tree_items = self.build_tree_items(&self.current_path)?;
         Ok(())
     }
 
     fn selected_path(&self) -> Option<PathBuf> {
         let selected_indices = self.tree_state.selected();
         if !selected_indices.is_empty() {
-            // Change type to slice
             let mut current: &[TreeItem<String>] = &self.tree_items;
             let mut path = self.current_path.clone();
 
@@ -181,11 +214,8 @@ impl FileExplorer {
                     .iter()
                     .find(|item| item.identifier() == selected_name)
                 {
-                    // Add this part to the path
-                    let file_name = selected_name
-                        .trim_start_matches("📁 ")
-                        .trim_start_matches("📄 ");
-                    path = path.join(file_name);
+                    // Use the actual file name instead of display text
+                    path = path.join(item.identifier());
 
                     // Move to children if any
                     current = item.children();
@@ -198,13 +228,19 @@ impl FileExplorer {
         }
     }
 
-    fn get_debug_info(&self) -> String {
-        let selected = self.tree_state.selected();
-        let path = self.selected_path();
-        format!(
-            "Current path: {:?}\nSelected: {:?}\nResolved path: {:?}",
-            self.current_path, selected, path
-        )
+    fn get_help_text(&self, file_type: FileSelectType, operation: OperationType) -> String {
+        match (file_type, operation) {
+            (FileSelectType::Data, OperationType::Encode) => {
+                "Select a text file (.txt) containing the secret message to encode".into()
+            }
+            (FileSelectType::Carrier, OperationType::Encode) => {
+                "Select any image file. Non-PNG files will be automatically converted.".into()
+            }
+            (FileSelectType::Carrier, OperationType::Decode) => {
+                "Select a PNG file containing a hidden message.".into()
+            }
+            _ => "".into(),
+        }
     }
 
     fn render(&mut self, frame: &mut Frame, area: Rect) {
@@ -235,7 +271,6 @@ impl FileExplorer {
 struct App {
     state: AppState,
     operation: Option<OperationType>,
-    splash_start: Instant,
     selected_menu: usize,
     file_explorer: Option<FileExplorer>,
     data_path: Option<PathBuf>,
@@ -243,14 +278,14 @@ struct App {
     output_path: Option<PathBuf>,
     encryption_key: Option<String>,
     progress_state: Arc<Mutex<ProgressState>>,
+    progress_bar: Option<ProgressBar>,
 }
 
 impl App {
     fn new() -> io::Result<Self> {
         Ok(Self {
-            state: AppState::Splash,
+            state: AppState::Main,
             operation: None,
-            splash_start: Instant::now(),
             selected_menu: 0,
             file_explorer: None,
             data_path: None,
@@ -262,15 +297,21 @@ impl App {
                 progress: 0.0,
                 result: None,
             })),
+            progress_bar: None,
         })
     }
 
-    fn update(&mut self) {
-        if let AppState::Splash = self.state {
-            if self.splash_start.elapsed() >= SPLASH_DURATION {
-                self.state = AppState::Main;
-            }
-        }
+    fn setup_progress_bar(&mut self) {
+        let pb = ProgressBar::new(100);
+        pb.set_style(
+            ProgressStyle::with_template(
+                "{spinner:.green} [{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}",
+            )
+            .unwrap()
+            .tick_chars("⠁⠂⠄⡀⢀⠠⠐⠈ ")
+            .progress_chars("█▇▆▅▄▃▂▁  "),
+        );
+        self.progress_bar = Some(pb);
     }
 
     fn get_instruction_message(&self) -> String {
@@ -295,6 +336,31 @@ impl App {
             }
             _ => String::new()
         }
+    }
+
+    fn handle_menu_selection(&mut self) -> io::Result<()> {
+        match self.selected_menu {
+            0 => {
+                self.operation = Some(OperationType::Encode);
+                self.file_explorer = Some(FileExplorer::new(
+                    FileSelectType::Data,
+                    OperationType::Encode,
+                )?);
+                self.state = AppState::FileSelect(FileSelectType::Data);
+            }
+            1 => {
+                self.operation = Some(OperationType::Decode);
+                self.file_explorer = Some(FileExplorer::new(
+                    FileSelectType::Carrier,
+                    OperationType::Decode,
+                )?);
+                self.state = AppState::FileSelect(FileSelectType::Carrier);
+            }
+            2 => self.state = AppState::KeyInput,
+            3 => return Ok(()),
+            _ => {}
+        }
+        Ok(())
     }
 
     fn get_output_path(&self) -> PathBuf {
@@ -337,10 +403,6 @@ impl App {
         let output_path = self.get_output_path();
         let encryption_key = self.encryption_key.clone();
         let progress_state = Arc::clone(&self.progress_state);
-
-        // Debug print the paths
-        println!("Data: {:?}", data_path);
-        println!("Carrier: {:?}", carrier_path);
 
         thread::spawn(move || {
             let result = match operation {
@@ -416,23 +478,9 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>) -> io::Result<()> {
     let mut app = App::new()?;
 
     loop {
-        app.update();
-
         terminal.draw(|frame| {
             let area = frame.area();
             match app.state {
-                AppState::Splash => {
-                    let main_block = Block::default()
-                        .borders(Borders::ALL)
-                        .style(Style::default().fg(Color::Cyan));
-                    let inner_area = main_block.inner(area);
-                    frame.render_widget(main_block, area);
-
-                    let splash = Paragraph::new("MINDBENDER")
-                        .style(Style::default().fg(Color::Cyan))
-                        .alignment(Alignment::Center);
-                    frame.render_widget(splash, inner_area);
-                }
                 AppState::Main => {
                     let chunks = Layout::default()
                         .direction(Direction::Vertical)
@@ -474,56 +522,20 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>) -> io::Result<()> {
                         .alignment(Alignment::Left);
                     frame.render_widget(menu, chunks[1]);
 
-                    let state_info = vec![
-                        format!(
-                            "Data File: {}",
-                            app.data_path
-                                .as_ref()
-                                .map_or("Not selected", |p| p.to_str().unwrap_or("Invalid path"))
-                        ),
-                        format!(
-                            "Carrier Image: {}",
-                            app.carrier_path
-                                .as_ref()
-                                .map_or("Not selected", |p| p.to_str().unwrap_or("Invalid path"))
-                        ),
-                        format!(
-                            "Output Path: {}",
-                            app.output_path
-                                .as_ref()
-                                .map_or("Default", |p| p.to_str().unwrap_or("Invalid path"))
-                        ),
-                        format!(
-                            "Encryption: {}",
-                            if app.encryption_key.is_some() {
-                                "Enabled"
-                            } else {
-                                "Disabled"
-                            }
-                        ),
-                    ];
-
-                    let state_text = Paragraph::new(state_info.join("\n"))
-                        .block(
-                            Block::default()
-                                .borders(Borders::ALL)
-                                .title("Current State"),
-                        )
-                        .alignment(Alignment::Left);
-                    frame.render_widget(state_text, chunks[2]);
-
                     let status = Paragraph::new("↑↓ to navigate | Enter to select | q to quit")
                         .style(Style::default().fg(Color::DarkGray))
                         .alignment(Alignment::Center);
                     frame.render_widget(status, chunks[3]);
                 }
-                AppState::FileSelect(_) => {
+                // Add this to the file explorer rendering
+                AppState::FileSelect(select_type) => {
                     let chunks = Layout::default()
                         .direction(Direction::Vertical)
                         .constraints([
-                            Constraint::Length(3), // Title
-                            Constraint::Min(0),    // File explorer
-                            Constraint::Length(3), // Debug info
+                            Constraint::Length(3), // Title/Instructions
+                            Constraint::Length(2), // Help text
+                            Constraint::Min(0),    // Main content
+                            Constraint::Length(3), // File info
                             Constraint::Length(1), // Status
                         ])
                         .split(area);
@@ -535,21 +547,66 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>) -> io::Result<()> {
                         .block(Block::default().borders(Borders::ALL));
                     frame.render_widget(title, chunks[0]);
 
-                    if let Some(explorer) = &mut app.file_explorer {
-                        explorer.render(frame, chunks[1]);
-
-                        // Add debug info
-                        let debug_info = Paragraph::new(explorer.get_debug_info())
-                            .block(Block::default().borders(Borders::ALL).title("Debug Info"));
-                        frame.render_widget(debug_info, chunks[2]);
+                    // Show context-sensitive help
+                    if let Some(explorer) = &app.file_explorer {
+                        let help_text = explorer.get_help_text(
+                            select_type,
+                            app.operation.unwrap_or(OperationType::Encode),
+                        );
+                        let help = Paragraph::new(help_text)
+                            .style(Style::default().fg(Color::Gray))
+                            .alignment(Alignment::Center);
+                        frame.render_widget(help, chunks[1]);
                     }
 
-                    let status = Paragraph::new(
-                        "↑↓ to navigate | Enter to select | Backspace to go up | Esc to cancel",
-                    )
+                    // Split main content area
+                    let content_chunks = Layout::default()
+                        .direction(Direction::Horizontal)
+                        .constraints([Constraint::Ratio(1, 2), Constraint::Ratio(1, 2)])
+                        .split(chunks[2]);
+
+                    if let Some(explorer) = &mut app.file_explorer {
+                        // Render file explorer
+                        explorer.render(frame, content_chunks[0]);
+
+                        // Show file info/preview
+                        if let Some(path) = explorer.selected_path() {
+                            let file_info = if path.is_file() {
+                                let metadata = fs::metadata(&path).ok();
+                                let size = metadata.as_ref().map(|m| m.len()).unwrap_or(0);
+                                let modified = metadata
+                                    .and_then(|m| m.modified().ok())
+                                    .map(|t| t.elapsed().unwrap_or_default())
+                                    .map(|e| format!("{:.1?} ago", e))
+                                    .unwrap_or_else(|| "Unknown".into());
+
+                                format!(
+                                    "File: {}\nSize: {:.1} KB\nModified: {}",
+                                    path.file_name().unwrap_or_default().to_string_lossy(),
+                                    size as f64 / 1024.0,
+                                    modified,
+                                )
+                            } else {
+                                format!("Directory: {}", path.display())
+                            };
+
+                            let info_widget = Paragraph::new(file_info)
+                                .block(Block::default().borders(Borders::ALL).title("File Info"))
+                                .alignment(Alignment::Left);
+                            frame.render_widget(info_widget, content_chunks[1]);
+                        }
+                    }
+
+                    let status = Paragraph::new(format!(
+                        "↑↓ navigate | Enter select | Esc back | {} files shown",
+                        app.file_explorer
+                            .as_ref()
+                            .map(|e| e.tree_items.len())
+                            .unwrap_or(0)
+                    ))
                     .style(Style::default().fg(Color::DarkGray))
                     .alignment(Alignment::Center);
-                    frame.render_widget(status, chunks[3]);
+                    frame.render_widget(status, chunks[4]);
                 }
                 AppState::KeyInput => {
                     let chunks = Layout::default()
@@ -587,54 +644,85 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>) -> io::Result<()> {
                     let chunks = Layout::default()
                         .direction(Direction::Vertical)
                         .constraints([
-                            Constraint::Length(3),
-                            Constraint::Min(0),
-                            Constraint::Length(2),
+                            Constraint::Length(3), // Title
+                            Constraint::Length(3), // Progress info
+                            Constraint::Min(0),    // Spacer for terminal flexibility
+                            Constraint::Length(3), // Footer/Status bar
                         ])
                         .split(area);
 
+                    // Initialize progress bar first, before borrowing progress_state
+                    if app.progress_bar.is_none() {
+                        app.setup_progress_bar();
+                    }
+
+                    // Now get the progress state
                     let progress_state = app.progress_state.lock().unwrap();
+
                     if progress_state.progress >= 1.0 {
-                        drop(progress_state); // Release the lock before changing state
+                        // Drop state before changing app state
+                        drop(progress_state);
+                        if let Some(pb) = app.progress_bar.take() {
+                            pb.finish_and_clear();
+                        }
                         app.state = AppState::Complete;
                     } else {
-                        let title = Paragraph::new("Processing")
+                        let title = Paragraph::new(progress_state.message.clone())
                             .style(Style::default().fg(Color::Cyan))
                             .alignment(Alignment::Center)
-                            .block(Block::default().borders(Borders::ALL));
+                            .block(
+                                Block::default()
+                                    .borders(Borders::ALL)
+                                    .title("Processing..."),
+                            );
                         frame.render_widget(title, chunks[0]);
 
-                        let message = Paragraph::new(&*progress_state.message)
-                            .block(Block::default().borders(Borders::ALL))
-                            .alignment(Alignment::Center);
-                        frame.render_widget(message, chunks[1]);
+                        // Update and render progress bar
+                        if let Some(pb) = &app.progress_bar {
+                            pb.set_message(progress_state.message.clone());
+                            pb.set_position((progress_state.progress * 100.0) as u64);
 
-                        let gauge = Gauge::default()
-                            .block(Block::default().borders(Borders::ALL))
-                            .gauge_style(Style::default().fg(Color::Cyan))
-                            .ratio(progress_state.progress);
-                        frame.render_widget(gauge, chunks[2]);
+                            // Get the progress bar display
+                            let progress_display = pb.message();
+                            let progress_widget = Paragraph::new(progress_display)
+                                .block(Block::default().borders(Borders::ALL))
+                                .alignment(Alignment::Left);
+                            frame.render_widget(progress_widget, chunks[1]);
+                        }
                     }
                 }
                 AppState::Complete => {
                     let chunks = Layout::default()
                         .direction(Direction::Vertical)
                         .constraints([
-                            Constraint::Length(3),
-                            Constraint::Min(0),
-                            Constraint::Length(1),
+                            Constraint::Length(3), // Title
+                            Constraint::Length(3), // Result
+                            Constraint::Length(3), // Stats
+                            Constraint::Min(0),    // Extra space
+                            Constraint::Length(1), // Status
                         ])
                         .split(area);
 
+                    let progress_state = app.progress_state.lock().unwrap();
+
+                    let title_style = if progress_state
+                        .result
+                        .as_ref()
+                        .map_or(false, |r| r.contains("failed"))
+                    {
+                        Style::default().fg(Color::Red)
+                    } else {
+                        Style::default().fg(Color::Green)
+                    };
+
                     let title = Paragraph::new("Operation Complete")
-                        .style(Style::default().fg(Color::Green))
+                        .style(title_style)
                         .alignment(Alignment::Center)
                         .block(Block::default().borders(Borders::ALL));
                     frame.render_widget(title, chunks[0]);
 
-                    let progress_state = app.progress_state.lock().unwrap();
                     if let Some(ref result) = progress_state.result {
-                        let message = Paragraph::new(result.as_str())
+                        let message = Paragraph::new(result.as_str())  // Changed this line
                             .block(Block::default().borders(Borders::ALL))
                             .alignment(Alignment::Center);
                         frame.render_widget(message, chunks[1]);
@@ -643,7 +731,7 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>) -> io::Result<()> {
                     let status = Paragraph::new("Press any key to continue")
                         .style(Style::default().fg(Color::DarkGray))
                         .alignment(Alignment::Center);
-                    frame.render_widget(status, chunks[2]);
+                    frame.render_widget(status, chunks[4]);
                 }
             }
         })?;
@@ -651,9 +739,6 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>) -> io::Result<()> {
         if event::poll(Duration::from_millis(50))? {
             if let Event::Key(key) = event::read()? {
                 match app.state {
-                    AppState::Splash => {
-                        app.state = AppState::Main;
-                    }
                     AppState::Main => match key.code {
                         KeyCode::Char('q') => return Ok(()),
                         KeyCode::Up => {
@@ -666,21 +751,9 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>) -> io::Result<()> {
                                 app.selected_menu += 1;
                             }
                         }
-                        KeyCode::Enter => match app.selected_menu {
-                            0 => {
-                                app.operation = Some(OperationType::Encode);
-                                app.file_explorer = Some(FileExplorer::new()?);
-                                app.state = AppState::FileSelect(FileSelectType::Data);
-                            }
-                            1 => {
-                                app.operation = Some(OperationType::Decode);
-                                app.file_explorer = Some(FileExplorer::new()?);
-                                app.state = AppState::FileSelect(FileSelectType::Carrier);
-                            }
-                            2 => app.state = AppState::KeyInput,
-                            3 => return Ok(()),
-                            _ => {}
-                        },
+                        KeyCode::Enter => {
+                            app.handle_menu_selection()?;
+                        }
                         _ => {}
                     },
                     AppState::FileSelect(select_type) => match key.code {
@@ -694,6 +767,10 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>) -> io::Result<()> {
                                     match select_type {
                                         FileSelectType::Data => {
                                             app.data_path = Some(path);
+                                            app.file_explorer = Some(FileExplorer::new(
+                                                FileSelectType::Carrier,
+                                                OperationType::Encode,
+                                            )?);
                                             app.state =
                                                 AppState::FileSelect(FileSelectType::Carrier);
                                         }
@@ -701,7 +778,6 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>) -> io::Result<()> {
                                             app.carrier_path = Some(path);
                                             app.state = AppState::KeyInput;
                                         }
-                                        _ => {}
                                     }
                                 }
                             }
@@ -726,7 +802,7 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>) -> io::Result<()> {
                                 explorer.tree_state.key_left();
                             }
                         }
-                        _ => {}
+                        _ => {} // Keep a single catch-all at the end
                     },
                     AppState::KeyInput => match key.code {
                         KeyCode::Esc => {
