@@ -5,12 +5,12 @@ use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use indicatif::{ProgressBar, ProgressStyle};
+use indicatif::ProgressBar;
 use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout},
     prelude::*,
     style::{Color, Modifier, Style},
-    text::Line,
+    text::{Line, Span},
     widgets::{Block, Borders, Paragraph, Scrollbar, ScrollbarOrientation},
     Terminal,
 };
@@ -333,19 +333,6 @@ impl App {
         })
     }
 
-    fn setup_progress_bar(&mut self) {
-        let pb = ProgressBar::new(100);
-        pb.set_style(
-            ProgressStyle::with_template(
-                "{spinner:.green} [{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}",
-            )
-            .unwrap()
-            .tick_chars("⠁⠂⠄⡀⢀⠠⠐⠈ ")
-            .progress_chars("█▇▆▅▄▃▂▁  "),
-        );
-        self.progress_bar = Some(pb);
-    }
-
     fn get_instruction_message(&self) -> String {
         match (self.state, self.operation) {
             (AppState::FileSelect(FileSelectType::Data), Some(OperationType::Encode)) => {
@@ -517,47 +504,107 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>) -> io::Result<()> {
                     let chunks = Layout::default()
                         .direction(Direction::Vertical)
                         .constraints([
-                            Constraint::Length(3),
-                            Constraint::Min(0),
-                            Constraint::Length(3),
-                            Constraint::Length(1),
+                            Constraint::Length(5), // Increased height for header
+                            Constraint::Min(10),   // Menu
+                            Constraint::Length(1), // Status
                         ])
+                        .margin(1) // Add margin around everything
                         .split(area);
 
-                    let title = Paragraph::new("Mindbender")
-                        .style(Style::default().fg(Color::Cyan))
-                        .alignment(Alignment::Center)
-                        .block(Block::default().borders(Borders::ALL));
+                    // Enhanced header with title and subtitle
+                    let header = vec![
+                        Line::from(vec![Span::styled(
+                            "Mindbender".to_string(),
+                            Style::default()
+                                .fg(Color::Cyan)
+                                .add_modifier(Modifier::BOLD),
+                        )]),
+                        Line::from(vec![Span::styled(
+                            "Steganography Tool".to_string(),
+                            Style::default().fg(Color::DarkGray),
+                        )]),
+                    ];
+
+                    let title = Paragraph::new(header)
+                        .block(
+                            Block::default()
+                                .borders(Borders::ALL)
+                                .border_style(Style::default().fg(Color::DarkGray)),
+                        )
+                        .alignment(Alignment::Center);
                     frame.render_widget(title, chunks[0]);
 
+                    // Enhanced menu with better spacing and indicators
                     let menu_items = vec![
-                        (0, "Encode Message"),
-                        (1, "Decode Message"),
-                        (2, "Settings"),
-                        (3, "Exit"),
+                        (
+                            0,
+                            "📝",
+                            "Encode Message",
+                            "Hide a secret message in an image",
+                        ),
+                        (
+                            1,
+                            "🔍",
+                            "Decode Message",
+                            "Extract a hidden message from an image",
+                        ),
+                        (
+                            2,
+                            "⚙️",
+                            "Settings",
+                            "Configure encryption and output options",
+                        ),
+                        (3, "✖️", "Exit", "Close the application"),
                     ];
 
                     let menu_lines: Vec<Line> = menu_items
                         .iter()
-                        .map(|(i, item)| {
-                            let style = if *i == app.selected_menu {
-                                Style::default().fg(Color::Yellow)
-                            } else {
-                                Style::default().fg(Color::White)
-                            };
-                            Line::styled(format!("  [{:^1}] {}", i + 1, item), style)
+                        .map(|(i, icon, item, desc)| {
+                            let spans = vec![
+                                Span::raw("  ".to_string()),
+                                Span::styled(
+                                    format!("[{}] ", i + 1),
+                                    Style::default().fg(Color::DarkGray),
+                                ),
+                                Span::raw(format!("{} ", icon)),
+                                if *i == app.selected_menu {
+                                    Span::styled(
+                                        item.to_string(),
+                                        Style::default()
+                                            .fg(Color::Yellow)
+                                            .add_modifier(Modifier::BOLD),
+                                    )
+                                } else {
+                                    Span::styled(
+                                        item.to_string(),
+                                        Style::default().fg(Color::White),
+                                    )
+                                },
+                                Span::raw("  ".to_string()),
+                                Span::styled(
+                                    desc.to_string(),
+                                    Style::default().fg(Color::DarkGray),
+                                ),
+                            ];
+                            Line::from(spans)
                         })
                         .collect();
 
                     let menu = Paragraph::new(menu_lines)
-                        .block(Block::default().borders(Borders::ALL))
+                        .block(
+                            Block::default()
+                                .borders(Borders::ALL)
+                                .title(" Menu ")
+                                .border_style(Style::default().fg(Color::DarkGray)),
+                        )
                         .alignment(Alignment::Left);
                     frame.render_widget(menu, chunks[1]);
 
-                    let status = Paragraph::new("↑↓ to navigate | Enter to select | q to quit")
+                    // Status bar with version
+                    let status = Paragraph::new("↑↓ to navigate • Enter to select • q to quit")
                         .style(Style::default().fg(Color::DarkGray))
                         .alignment(Alignment::Center);
-                    frame.render_widget(status, chunks[3]);
+                    frame.render_widget(status, chunks[2]);
                 }
                 AppState::FileSelect(select_type) => {
                     let chunks = Layout::default()
@@ -693,7 +740,6 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>) -> io::Result<()> {
                     frame.render_widget(title, chunks[1]);
 
                     // Custom progress bar
-                    let percent = (progress_state.progress * 100.0) as u16;
                     let bar_width = chunks[2].width.saturating_sub(2) as usize; // Subtract 2 for borders
                     let filled = ((bar_width as f64) * progress_state.progress) as usize;
 
