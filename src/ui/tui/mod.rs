@@ -19,7 +19,7 @@ use std::{
     path::{Path, PathBuf},
     sync::{Arc, Mutex},
     thread,
-    time::Duration,
+    time::{Duration, Instant},
 };
 use tui_tree_widget::{Tree, TreeItem, TreeState};
 
@@ -48,6 +48,42 @@ struct ProgressState {
     message: String,
     progress: f64,
     result: Option<String>,
+    start_time: Instant,
+    eta_seconds: Option<u64>,
+}
+
+impl ProgressState {
+    fn new(message: String) -> Self {
+        Self {
+            message,
+            progress: 0.0,
+            result: None,
+            start_time: Instant::now(),
+            eta_seconds: None,
+        }
+    }
+
+    fn update_progress(&mut self, progress: f64) {
+        self.progress = progress;
+
+        if progress > 0.0 {
+            let elapsed = self.start_time.elapsed().as_secs_f64();
+            let total_estimated = elapsed / progress;
+            self.eta_seconds = Some((total_estimated - elapsed) as u64);
+        }
+    }
+
+    fn format_eta(&self) -> String {
+        if let Some(eta) = self.eta_seconds {
+            if eta < 60 {
+                format!("{}s remaining", eta)
+            } else {
+                format!("{}m {}s remaining", eta / 60, eta % 60)
+            }
+        } else {
+            "Calculating...".to_string()
+        }
+    }
 }
 
 struct TuiProgress {
@@ -58,7 +94,7 @@ impl Progress for TuiProgress {
     fn update(&self, message: &str) {
         let mut state = self.state.lock().unwrap();
         state.message = message.to_string();
-        state.progress = match message {
+        let progress = match message {
             "Starting operation..." => 0.0,
             "Loading carrier image..." => 0.1,
             "Reading data file..." => 0.2,
@@ -70,12 +106,13 @@ impl Progress for TuiProgress {
             "Saving decoded message..." => 0.9,
             _ => state.progress,
         };
+        state.update_progress(progress);
     }
 
     fn finish_with_message(&self, message: &str) {
         let mut state = self.state.lock().unwrap();
         state.message = message.to_string();
-        state.progress = 1.0;
+        state.update_progress(1.0);
         state.result = Some(message.to_string());
     }
 }
@@ -291,11 +328,7 @@ impl App {
             carrier_path: None,
             output_path: None,
             encryption_key: None,
-            progress_state: Arc::new(Mutex::new(ProgressState {
-                message: String::from("Mindbender"),
-                progress: 0.0,
-                result: None,
-            })),
+            progress_state: Arc::new(Mutex::new(ProgressState::new(String::from("Mindbender")))),
             progress_bar: None,
         })
     }
@@ -642,18 +675,51 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>) -> io::Result<()> {
                     let chunks = Layout::default()
                         .direction(Direction::Vertical)
                         .constraints([
+                            Constraint::Length(1), // Top margin
                             Constraint::Length(3), // Title
-                            Constraint::Length(3), // Progress info
-                            Constraint::Min(0),    // Spacer for terminal flexibility
-                            Constraint::Length(3), // Footer/Status bar
+                            Constraint::Length(3), // Progress bar
+                            Constraint::Length(2), // Progress text
+                            Constraint::Length(1), // Bottom margin
                         ])
                         .split(area);
 
-                    if app.progress_bar.is_none() {
-                        app.setup_progress_bar();
-                    }
-
                     let progress_state = app.progress_state.lock().unwrap();
+
+                    // Title with message
+                    let title = Paragraph::new(progress_state.message.clone())
+                        .style(Style::default().fg(Color::Cyan))
+                        .alignment(Alignment::Center)
+                        .block(Block::default().borders(Borders::ALL));
+                    frame.render_widget(title, chunks[1]);
+
+                    // Custom progress bar
+                    let percent = (progress_state.progress * 100.0) as u16;
+                    let bar_width = chunks[2].width.saturating_sub(2) as usize; // Subtract 2 for borders
+                    let filled = ((bar_width as f64) * progress_state.progress) as usize;
+
+                    let bar = format!(
+                        "{}{}",
+                        "█".repeat(filled),
+                        "░".repeat(bar_width.saturating_sub(filled))
+                    );
+
+                    let progress_bar = Paragraph::new(bar)
+                        .style(Style::default().fg(Color::Cyan))
+                        .alignment(Alignment::Center)
+                        .block(Block::default().borders(Borders::ALL));
+                    frame.render_widget(progress_bar, chunks[2]);
+
+                    // Progress text with percentage and ETA
+                    let progress_text = format!(
+                        "{}% • {}",
+                        (progress_state.progress * 100.0).round() as u32,
+                        progress_state.format_eta()
+                    );
+
+                    let progress_info = Paragraph::new(progress_text)
+                        .style(Style::default().fg(Color::Gray))
+                        .alignment(Alignment::Center);
+                    frame.render_widget(progress_info, chunks[3]);
 
                     if progress_state.progress >= 1.0 {
                         drop(progress_state);
@@ -661,29 +727,6 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>) -> io::Result<()> {
                             pb.finish_and_clear();
                         }
                         app.state = AppState::Complete;
-                    } else {
-                        let title = Paragraph::new(progress_state.message.clone())
-                            .style(Style::default().fg(Color::Cyan))
-                            .alignment(Alignment::Center)
-                            .block(
-                                Block::default()
-                                    .borders(Borders::ALL)
-                                    .title("Processing..."),
-                            );
-                        frame.render_widget(title, chunks[0]);
-
-                        // Update and render progress bar
-                        if let Some(pb) = &app.progress_bar {
-                            pb.set_message(progress_state.message.clone());
-                            pb.set_position((progress_state.progress * 100.0) as u64);
-
-                            // Get the progress bar display
-                            let progress_display = pb.message();
-                            let progress_widget = Paragraph::new(progress_display)
-                                .block(Block::default().borders(Borders::ALL))
-                                .alignment(Alignment::Left);
-                            frame.render_widget(progress_widget, chunks[1]);
-                        }
                     }
                 }
                 AppState::Complete => {
@@ -835,11 +878,8 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>) -> io::Result<()> {
                     AppState::Processing => {}
                     AppState::Complete => {
                         app.state = AppState::Main;
-                        app.progress_state = Arc::new(Mutex::new(ProgressState {
-                            message: String::from("Mindbender"),
-                            progress: 0.0,
-                            result: None,
-                        }));
+                        app.progress_state =
+                            Arc::new(Mutex::new(ProgressState::new(String::from("Mindbender"))));
                     }
                 }
             }
