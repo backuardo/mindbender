@@ -376,7 +376,7 @@ impl App {
                 self.state = AppState::FileSelect(FileSelectType::Carrier);
             }
             2 => self.state = AppState::KeyInput,
-            3 => return Ok(()),
+            3 => std::process::exit(0),
             _ => {}
         }
         Ok(())
