@@ -58,7 +58,6 @@ impl Progress for TuiProgress {
     fn update(&self, message: &str) {
         let mut state = self.state.lock().unwrap();
         state.message = message.to_string();
-        // Map the messages to progress values more granularly
         state.progress = match message {
             "Starting operation..." => 0.0,
             "Loading carrier image..." => 0.1,
@@ -293,7 +292,7 @@ impl App {
             output_path: None,
             encryption_key: None,
             progress_state: Arc::new(Mutex::new(ProgressState {
-                message: String::from("Welcome to Mindbender"),
+                message: String::from("Mindbender"),
                 progress: 0.0,
                 result: None,
             })),
@@ -320,7 +319,7 @@ impl App {
                 "Select the text file containing the secret message to encode".into()
             }
             (AppState::FileSelect(FileSelectType::Carrier), Some(OperationType::Encode)) => {
-                "Select a carrier image (PNG or BMP). This is the image that will contain the hidden message".into()
+                "Select a carrier image (lossless). This is the image that will contain the hidden message".into()
             }
             // (AppState::FileSelect(FileSelectType::Output), Some(OperationType::Encode)) => {
             //     "Choose where to save the encoded image".into()
@@ -492,7 +491,7 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>) -> io::Result<()> {
                         ])
                         .split(area);
 
-                    let title = Paragraph::new("MINDBENDER v1.0")
+                    let title = Paragraph::new("Mindbender")
                         .style(Style::default().fg(Color::Cyan))
                         .alignment(Alignment::Center)
                         .block(Block::default().borders(Borders::ALL));
@@ -527,7 +526,6 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>) -> io::Result<()> {
                         .alignment(Alignment::Center);
                     frame.render_widget(status, chunks[3]);
                 }
-                // Add this to the file explorer rendering
                 AppState::FileSelect(select_type) => {
                     let chunks = Layout::default()
                         .direction(Direction::Vertical)
@@ -651,16 +649,13 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>) -> io::Result<()> {
                         ])
                         .split(area);
 
-                    // Initialize progress bar first, before borrowing progress_state
                     if app.progress_bar.is_none() {
                         app.setup_progress_bar();
                     }
 
-                    // Now get the progress state
                     let progress_state = app.progress_state.lock().unwrap();
 
                     if progress_state.progress >= 1.0 {
-                        // Drop state before changing app state
                         drop(progress_state);
                         if let Some(pb) = app.progress_bar.take() {
                             pb.finish_and_clear();
@@ -722,7 +717,7 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>) -> io::Result<()> {
                     frame.render_widget(title, chunks[0]);
 
                     if let Some(ref result) = progress_state.result {
-                        let message = Paragraph::new(result.as_str())  // Changed this line
+                        let message = Paragraph::new(result.as_str())
                             .block(Block::default().borders(Borders::ALL))
                             .alignment(Alignment::Center);
                         frame.render_widget(message, chunks[1]);
@@ -802,7 +797,7 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>) -> io::Result<()> {
                                 explorer.tree_state.key_left();
                             }
                         }
-                        _ => {} // Keep a single catch-all at the end
+                        _ => {}
                     },
                     AppState::KeyInput => match key.code {
                         KeyCode::Esc => {
@@ -841,7 +836,7 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>) -> io::Result<()> {
                     AppState::Complete => {
                         app.state = AppState::Main;
                         app.progress_state = Arc::new(Mutex::new(ProgressState {
-                            message: String::from("Welcome to Mindbender"),
+                            message: String::from("Mindbender"),
                             progress: 0.0,
                             result: None,
                         }));
