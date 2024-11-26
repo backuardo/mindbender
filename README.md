@@ -3,11 +3,9 @@
 
 [![License: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)](#license)
 
-*A steganography tool for encrypting and hiding text within images.*
-
 ## Introduction
 
-**Mindbender** is a CLI tool for hiding (and retrieving) text data within images using steganography techniques.
+*A steganography CLI tool for encrypting, hiding, and retrieving text within images.*
 
 ### Building from source
 
