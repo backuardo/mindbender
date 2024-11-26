@@ -52,6 +52,10 @@ mindbender decode [OPTIONS] <CARRIER_FILE_PATH>
 mindbender decode hidden.png --output-path revealed_message.txt --key "my_secret_key"
 ```
 
+### Terminal User Interface (TUI)
+
+Coming soon?
+
 ## Configuration
 Mindbender automatically handles lossy images by converting them to a lossless format (PNG). You can provide a custom output path and encryption key as needed.
 
