@@ -14,15 +14,12 @@ const DEFAULT_DECODED_OUTPUT: &str = "decoded.txt";
     before_help = splash()
 )]
 pub struct Cli {
-    /// Optional name for the operation
     #[arg(long, help = "Optional name for the operation")]
     pub name: Option<String>,
 
-    /// Path to configuration file
     #[arg(short, long, value_name = "FILE", help = "Path to configuration file")]
     pub config: Option<PathBuf>,
 
-    /// Debug level (use multiple times for more verbosity)
     #[arg(
         short,
         long,
@@ -31,31 +28,26 @@ pub struct Cli {
     )]
     pub debug: u8,
 
-    /// Subcommand to execute
     #[command(subcommand)]
     pub command: Option<Commands>,
 }
 
-// TODO: commands should support piping (e.g., "-" for stdin or stdout)
+// @todo commands should support piping
 #[derive(Subcommand)]
 pub enum Commands {
-    /// Encode a message into an image
     Encode {
-        /// Path to the text file containing the message to encode
         #[arg(
             value_name = "DATA_FILE_PATH",
             help = "Path to the text file containing the message to encode"
         )]
         data_path: String,
 
-        /// Path to the carrier image file
         #[arg(
             value_name = "CARRIER_FILE_PATH",
             help = "Path to the carrier image that will store the message"
         )]
         carrier_path: String,
 
-        /// Output path for the encoded image (default: output.png)
         #[arg(
             short,
             long,
@@ -65,7 +57,6 @@ pub enum Commands {
         )]
         output_path: String,
 
-        /// Optional encryption key
         #[arg(
             short,
             long,
@@ -75,16 +66,13 @@ pub enum Commands {
         key: Option<String>,
     },
 
-    /// Decode a message from an image
     Decode {
-        /// Path to the carrier image file containing the hidden message
         #[arg(
             value_name = "CARRIER_FILE_PATH",
             help = "Path to the image containing the hidden message"
         )]
         carrier_path: String,
 
-        /// Output path for the decoded message (default: decoded.txt)
         #[arg(
             short,
             long,
@@ -94,7 +82,6 @@ pub enum Commands {
         )]
         output_path: String,
 
-        /// Optional decryption key
         #[arg(
             short,
             long,

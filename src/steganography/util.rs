@@ -1,6 +1,6 @@
 use image::RgbImage;
 
-/// Checks if an image has sufficient capacity to store the given text using LSB steganography.
+/// Checks if an image has sufficient capacity to store the given text (LSB)
 pub fn is_sufficient_capacity(text: &str, image: &RgbImage) -> bool {
     const BITS_PER_CHAR: usize = 8;
     const DELIMITER_SIZE: usize = 1;

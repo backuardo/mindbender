@@ -14,13 +14,13 @@ pub fn validate_path(file_path: &str) -> Result<(), ApplicationError> {
     }
 }
 
-// TODO: this should support reading from stdin
+// @todo this should support reading from stdin
 /// Read text data from the specified file path
 pub fn read_text(file_path: &str) -> Result<String, ApplicationError> {
     fs::read_to_string(file_path).map_err(ApplicationError::IoError)
 }
 
-// TODO: this should support printing to stdout
+// @todo this should support printing to stdout
 /// Write text data to the specified file path
 pub fn write_text(text: &str, file_path: &str) -> Result<(), ApplicationError> {
     ensure_parent_directory(file_path)?;

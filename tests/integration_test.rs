@@ -4,18 +4,15 @@ use tempfile::tempdir;
 
 #[test]
 fn test_encode_decode_without_key() -> Result<(), Box<dyn std::error::Error>> {
-    // Set up temporary directories and files
     let temp_dir = tempdir()?;
     let data_path = temp_dir.path().join("data.txt");
     let carrier_path = temp_dir.path().join("carrier.png");
     let encoded_image_path = temp_dir.path().join("encoded.png");
     let decoded_text_path = temp_dir.path().join("decoded.txt");
 
-    // Write sample data
     fs::write(&data_path, "Hello, world!")?;
     fs::write(&carrier_path, include_bytes!("example/carrier.png"))?;
 
-    // Run the encode command with positional arguments
     Command::cargo_bin("mindbender")?
         .args(&[
             "encode",
@@ -27,7 +24,6 @@ fn test_encode_decode_without_key() -> Result<(), Box<dyn std::error::Error>> {
         .assert()
         .success();
 
-    // Run the decode command with positional arguments
     Command::cargo_bin("mindbender")?
         .args(&[
             "decode",
@@ -38,7 +34,6 @@ fn test_encode_decode_without_key() -> Result<(), Box<dyn std::error::Error>> {
         .assert()
         .success();
 
-    // Verify that decoded text matches original input
     let decoded_text = fs::read_to_string(decoded_text_path)?;
     assert_eq!(decoded_text, "Hello, world!");
 
@@ -55,11 +50,9 @@ fn test_encode_decode_with_key() -> Result<(), Box<dyn std::error::Error>> {
 
     let secret_key = "my_secret_key";
 
-    // Write sample data
     fs::write(&data_path, "Secret message!")?;
     fs::write(&carrier_path, include_bytes!("example/carrier.png"))?;
 
-    // Run the encode command with a key
     Command::cargo_bin("mindbender")?
         .args(&[
             "encode",
@@ -73,7 +66,6 @@ fn test_encode_decode_with_key() -> Result<(), Box<dyn std::error::Error>> {
         .assert()
         .success();
 
-    // Run the decode command with the key
     Command::cargo_bin("mindbender")?
         .args(&[
             "decode",
@@ -86,7 +78,6 @@ fn test_encode_decode_with_key() -> Result<(), Box<dyn std::error::Error>> {
         .assert()
         .success();
 
-    // Verify that decoded text matches original input
     let decoded_text = fs::read_to_string(decoded_text_path)?;
     assert_eq!(decoded_text, "Secret message!");
 
@@ -95,18 +86,15 @@ fn test_encode_decode_with_key() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn test_encode_decode_with_lossy_image() -> Result<(), Box<dyn std::error::Error>> {
-    // Set up temporary directories and files
     let temp_dir = tempdir()?;
     let data_path = temp_dir.path().join("data.txt");
     let carrier_path = temp_dir.path().join("carrier.jpg");
-    let encoded_image_path = temp_dir.path().join("encoded.png"); // Output will be PNG after conversion
+    let encoded_image_path = temp_dir.path().join("encoded.png");
     let decoded_text_path = temp_dir.path().join("decoded.txt");
 
-    // Write sample data
     fs::write(&data_path, "Message in lossy image!")?;
     fs::write(&carrier_path, include_bytes!("example/carrier.jpeg"))?;
 
-    // Run the encode command
     Command::cargo_bin("mindbender")?
         .args(&[
             "encode",
@@ -121,7 +109,6 @@ fn test_encode_decode_with_lossy_image() -> Result<(), Box<dyn std::error::Error
             "Warning: Carrier image is lossy. Converting to lossless format...",
         ));
 
-    // Verify that the encoded image is in PNG format
     assert!(encoded_image_path.exists());
     assert_eq!(
         encoded_image_path
@@ -133,7 +120,6 @@ fn test_encode_decode_with_lossy_image() -> Result<(), Box<dyn std::error::Error
         "png"
     );
 
-    // Run the decode command
     Command::cargo_bin("mindbender")?
         .args(&[
             "decode",
@@ -144,7 +130,6 @@ fn test_encode_decode_with_lossy_image() -> Result<(), Box<dyn std::error::Error
         .assert()
         .success();
 
-    // Verify that decoded text matches original input
     let decoded_text = fs::read_to_string(decoded_text_path)?;
     assert_eq!(decoded_text, "Message in lossy image!");
 
@@ -153,7 +138,6 @@ fn test_encode_decode_with_lossy_image() -> Result<(), Box<dyn std::error::Error
 
 #[test]
 fn test_decode_with_incorrect_key() -> Result<(), Box<dyn std::error::Error>> {
-    // Set up temporary directories and files
     let temp_dir = tempdir()?;
     let data_path = temp_dir.path().join("data.txt");
     let carrier_path = temp_dir.path().join("carrier.png");
@@ -167,7 +151,6 @@ fn test_decode_with_incorrect_key() -> Result<(), Box<dyn std::error::Error>> {
     fs::write(&data_path, "Secret message!")?;
     fs::write(&carrier_path, include_bytes!("example/carrier.png"))?;
 
-    // Run the encode command with the correct key
     Command::cargo_bin("mindbender")?
         .args(&[
             "encode",
@@ -181,7 +164,6 @@ fn test_decode_with_incorrect_key() -> Result<(), Box<dyn std::error::Error>> {
         .assert()
         .success();
 
-    // Run the decode command with the incorrect key
     Command::cargo_bin("mindbender")?
         .args(&[
             "decode",
@@ -200,7 +182,6 @@ fn test_decode_with_incorrect_key() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn test_encode_decode_with_special_characters() -> Result<(), Box<dyn std::error::Error>> {
-    // Set up temporary directories and files
     let temp_dir = tempdir()?;
     let data_path = temp_dir.path().join("data.txt");
     let carrier_path = temp_dir.path().join("carrier.png");
@@ -209,11 +190,9 @@ fn test_encode_decode_with_special_characters() -> Result<(), Box<dyn std::error
 
     let special_message = "特殊字符测试 🚀✨";
 
-    // Write sample data
     fs::write(&data_path, special_message)?;
     fs::write(&carrier_path, include_bytes!("example/carrier.png"))?;
 
-    // Run the encode command
     Command::cargo_bin("mindbender")?
         .args(&[
             "encode",
@@ -225,7 +204,6 @@ fn test_encode_decode_with_special_characters() -> Result<(), Box<dyn std::error
         .assert()
         .success();
 
-    // Run the decode command
     Command::cargo_bin("mindbender")?
         .args(&[
             "decode",
@@ -236,7 +214,6 @@ fn test_encode_decode_with_special_characters() -> Result<(), Box<dyn std::error
         .assert()
         .success();
 
-    // Verify that decoded text matches original input
     let decoded_text = fs::read_to_string(decoded_text_path)?;
     assert_eq!(decoded_text, special_message);
 
@@ -245,18 +222,15 @@ fn test_encode_decode_with_special_characters() -> Result<(), Box<dyn std::error
 
 #[test]
 fn test_encode_overwrites_existing_file() -> Result<(), Box<dyn std::error::Error>> {
-    // Set up temporary directories and files
     let temp_dir = tempdir()?;
     let data_path = temp_dir.path().join("data.txt");
     let carrier_path = temp_dir.path().join("carrier.png");
     let encoded_image_path = temp_dir.path().join("encoded.png");
 
-    // Write sample data and create an existing output file
     fs::write(&data_path, "Hello, world!")?;
     fs::write(&carrier_path, include_bytes!("example/carrier.png"))?;
     fs::write(&encoded_image_path, "Existing file content")?;
 
-    // Run the encode command
     Command::cargo_bin("mindbender")?
         .args(&[
             "encode",
@@ -268,7 +242,6 @@ fn test_encode_overwrites_existing_file() -> Result<(), Box<dyn std::error::Erro
         .assert()
         .success();
 
-    // Verify that the existing file was overwritten
     let metadata = fs::metadata(&encoded_image_path)?;
     assert!(metadata.len() > 0);
     let new_content = fs::read(&encoded_image_path)?;
@@ -279,17 +252,14 @@ fn test_encode_overwrites_existing_file() -> Result<(), Box<dyn std::error::Erro
 
 #[test]
 fn test_encode_with_non_image_file() -> Result<(), Box<dyn std::error::Error>> {
-    // Set up temporary directories and files
     let temp_dir = tempdir()?;
     let data_path = temp_dir.path().join("data.txt");
     let carrier_path = temp_dir.path().join("not_an_image.txt");
     let encoded_image_path = temp_dir.path().join("encoded.png");
 
-    // Write sample data
     fs::write(&data_path, "Hello, world!")?;
     fs::write(&carrier_path, "This is not an image.")?;
 
-    // Run the encode command
     Command::cargo_bin("mindbender")?
         .args(&[
             "encode",
@@ -307,20 +277,17 @@ fn test_encode_with_non_image_file() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn test_encode_with_insufficient_capacity() -> Result<(), Box<dyn std::error::Error>> {
-    // Set up temporary directories and files
     let temp_dir = tempdir()?;
     let data_path = temp_dir.path().join("large_data.txt");
     let carrier_path = temp_dir.path().join("carrier_small.png");
     let encoded_image_path = temp_dir.path().join("encoded.png");
 
-    // Write large data to carrier image
     fs::write(
         &data_path,
         "This message is too long for the carrier image.",
     )?;
     fs::write(&carrier_path, include_bytes!("example/carrier_small.png"))?;
 
-    // Run the encode command
     Command::cargo_bin("mindbender")?
         .args(&[
             "encode",

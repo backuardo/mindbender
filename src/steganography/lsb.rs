@@ -6,12 +6,7 @@ use rayon::prelude::*;
 const NULL_DELIMITER: char = '\0';
 const BITS_PER_BYTE: usize = 8;
 
-/// Encodes text data into an image using LSB (Least Significant Bit) steganography.
-///
-/// # How it works
-/// - Each character is split into 8 bits
-/// - Each bit is stored in the least significant bit of an RGB channel
-/// - A null character ('\0') is appended as a delimiter
+/// Encodes text data into an image using LSB (Least Significant Bit) steganography
 pub fn encode(data: &str, image: &mut RgbImage) -> Result<(), ApplicationError> {
     let data_with_delimiter = format!("{}{}", data, NULL_DELIMITER);
 
@@ -36,12 +31,7 @@ pub fn encode(data: &str, image: &mut RgbImage) -> Result<(), ApplicationError> 
     Ok(())
 }
 
-/// Decodes text data from an image that was encoded using LSB steganography.
-///
-/// # How it works
-/// - Collects the least significant bit from each RGB channel
-/// - Combines bits into bytes until a null delimiter is found
-/// - Converts the bytes back into a UTF-8 string
+/// Decodes text data from an image that was encoded using LSB steganography
 pub fn decode(image: &RgbImage) -> Result<String, ApplicationError> {
     let mut bits = Vec::with_capacity(image.width() as usize * image.height() as usize * 3);
 

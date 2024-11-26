@@ -4,12 +4,9 @@ use crate::error::ApplicationError;
 use crate::steganography::lsb;
 use colored::*;
 
-/// Progress tracking interface for steganography operations
+/// Progress tracking interface
 pub trait Progress {
-    /// Updates the progress display with a new status message
     fn update(&self, message: &str);
-
-    /// Completes the progress tracking with a final message
     fn finish_with_message(&self, message: &str);
 }
 

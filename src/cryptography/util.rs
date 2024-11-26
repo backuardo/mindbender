@@ -3,7 +3,7 @@ use colored::*;
 
 const KEY_SIZE: usize = 32;
 
-/// Convert a string key into a fixed 32-byte array, suitable for AES-256 encryption
+/// Convert a string key into a fixed 32-byte array for AES-256 encryption
 pub fn key_to_bytes(key: &str) -> Result<[u8; 32], ApplicationError> {
     let key_bytes = key.as_bytes();
 
