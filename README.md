@@ -7,23 +7,15 @@
 
 ## Introduction
 
-**Mindbender** is a tool for hiding (and retrieving) text data within images using steganography techniques. It supports optional encryption for added security, ensuring your hidden messages remain confidential. The tool can be used either through a command-line interface or an interactive terminal user interface.
+**Mindbender** is a CLI tool for hiding (and retrieving) text data within images using steganography techniques. It supports optional encryption for added security, ensuring your hidden messages remain confidential.
 
 ## Features
 
 - **Steganography Encoding and Decoding**: Hide text data within images.
 - **Encryption Support**: Optional AES-256 encryption for secure data.
 - **Automatic Lossy Image Conversion**: Converts lossy images to lossless formats automatically.
-- **Dual Interface**: Choose between CLI or TUI modes
 
 ## Usage
-
-### Terminal User Interface (TUI)
-
-Launch the interactive TUI by running the command without any arguments:
-```
-mindbender
-```
 
 ### Command-Line Interface (CLI)
 
