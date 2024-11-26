@@ -7,13 +7,32 @@
 
 ## Introduction
 
-**Mindbender** is a CLI tool for hiding (and retrieving) text data within images using steganography techniques. It supports optional encryption for added security, ensuring your hidden messages remain confidential.
+**Mindbender** is a CLI tool for hiding (and retrieving) text data within images using steganography techniques.
 
-## Features
+### Building from source
 
-- **Steganography Encoding and Decoding**: Hide text data within images.
-- **Encryption Support**: Optional AES-256 encryption for secure data.
-- **Automatic Lossy Image Conversion**: Converts lossy images to lossless formats automatically.
+To build Mindbender from source, you will need the following dependencies:
+
+-   [Rust](https://www.rust-lang.org/tools/install)
+-   [Cargo](https://doc.rust-lang.org/cargo/getting-started/installation.html)
+
+Once you have installed the dependencies, you can build Mindbender by running the following command:
+
+```bash
+cargo build --release
+```
+
+This will create a binary file named `target/release/mindbender` in the project directory.
+
+### Installing from source
+
+To install Mindbender from source, you can use the following command:
+
+```bash
+cargo install --path .
+```
+
+This will install the Mindbender binary in your local Rust installation.
 
 ## Usage
 
@@ -55,9 +74,6 @@ mindbender decode hidden.png --output-path revealed_message.txt --key "my_secret
 ### Terminal User Interface (TUI)
 
 Coming soon?
-
-## Configuration
-Mindbender automatically handles lossy images by converting them to a lossless format (PNG). You can provide a custom output path and encryption key as needed.
 
 ## License
 
