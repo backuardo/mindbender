@@ -147,7 +147,6 @@ fn test_decode_with_incorrect_key() -> Result<(), Box<dyn std::error::Error>> {
     let correct_key = "correct_secret_key";
     let incorrect_key = "incorrect_secret_key";
 
-    // Write sample data
     fs::write(&data_path, "Secret message!")?;
     fs::write(&carrier_path, include_bytes!("example/carrier.png"))?;
 
