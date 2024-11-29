@@ -36,7 +36,22 @@ This will install the Mindbender binary in your local Rust installation.
 
 ### Command-Line Interface (CLI)
 
-Mindbender provides `encode` and `decode` commands.
+Mindbender provides `encode`, `decode`, and `generate-key` commands.
+
+### Generate an encryption key
+
+```
+mindbender generate-key [OPTIONS]
+```
+
+**Options**
+-   `l`, `--length <LENGTH>`: Length of the key to generate in bytes.
+-   `o`, `--output <FILE>`: Save the key to a file.
+
+**Example:**
+```
+mindbender generate-key --length 32 --output key.txt
+```
 
 #### Encode a message
 ```

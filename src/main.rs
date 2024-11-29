@@ -53,5 +53,13 @@ fn handle_cli_mode(command: cli::Commands) -> Result<(), ApplicationError> {
             let progress = ProgressTracker::new();
             core::operations::decode(&carrier_path, &output_path, key, &progress)
         }
+        Commands::GenerateKey { length, output } => {
+            let key = cryptography::util::generate_key(length)?;
+            match output {
+                Some(path) => core::file::write_text(&key, path.to_str().unwrap())?,
+                None => println!("Generated key: {}", key),
+            }
+            Ok(())
+        }
     }
 }

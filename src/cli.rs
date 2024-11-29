@@ -35,6 +35,13 @@ pub struct Cli {
 // @todo commands should support piping
 #[derive(Subcommand)]
 pub enum Commands {
+    GenerateKey {
+        #[arg(short, long, help = "Length of the key to generate")]
+        length: Option<usize>,
+
+        #[arg(short, long, value_name = "FILE", help = "Save key to file")]
+        output: Option<PathBuf>,
+    },
     Encode {
         #[arg(
             value_name = "DATA_FILE_PATH",

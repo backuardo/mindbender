@@ -1,4 +1,6 @@
 use crate::error::ApplicationError;
+use aes_gcm::aead::{rand_core::RngCore, OsRng};
+use base64::{engine::general_purpose, Engine};
 use colored::*;
 
 const KEY_SIZE: usize = 32;
@@ -22,6 +24,14 @@ pub fn key_to_bytes(key: &str) -> Result<[u8; 32], ApplicationError> {
     let mut result = [0u8; KEY_SIZE];
     result[..key_bytes.len()].copy_from_slice(key_bytes);
     Ok(result)
+}
+
+/// Generate an encryption key
+pub fn generate_key(length: Option<usize>) -> Result<String, ApplicationError> {
+    let key_length = length.unwrap_or(32);
+    let mut key = vec![0u8; key_length];
+    OsRng.fill_bytes(&mut key);
+    Ok(general_purpose::STANDARD.encode(key))
 }
 
 #[cfg(test)]
@@ -73,5 +83,21 @@ mod tests {
         assert_eq!(result.len(), KEY_SIZE);
         assert_eq!(&result[..4], key.as_bytes());
         assert!(result[4..].iter().all(|&b| b == 0));
+    }
+
+    #[test]
+    fn test_generate_key() {
+        let key = generate_key(None).unwrap();
+        assert_eq!(general_purpose::STANDARD.decode(&key).unwrap().len(), 32);
+    }
+
+    #[test]
+    fn test_generate_custom_length_key() {
+        let length = 16;
+        let key = generate_key(Some(length)).unwrap();
+        assert_eq!(
+            general_purpose::STANDARD.decode(&key).unwrap().len(),
+            length
+        );
     }
 }
