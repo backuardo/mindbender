@@ -71,6 +71,13 @@ pub enum Commands {
             help = "Optional encryption key to secure the message"
         )]
         key: Option<String>,
+
+        #[arg(
+            short,
+            long,
+            help = "Compress the message before embedding it into the carrier image"
+        )]
+        compress: bool,
     },
 
     Decode {
@@ -96,6 +103,13 @@ pub enum Commands {
             help = "Decryption key (required if message was encrypted)"
         )]
         key: Option<String>,
+
+        #[arg(
+            short,
+            long,
+            help = "Decompress the message after extracting it from the carrier image"
+        )]
+        decompress: bool,
     },
 }
 

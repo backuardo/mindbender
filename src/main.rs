@@ -41,17 +41,26 @@ fn handle_cli_mode(command: cli::Commands) -> Result<(), ApplicationError> {
             carrier_path,
             output_path,
             key,
+            compress,
         } => {
             let progress = ProgressTracker::new();
-            core::operations::encode(&data_path, &carrier_path, &output_path, key, &progress)
+            core::operations::encode(
+                &data_path,
+                &carrier_path,
+                &output_path,
+                key,
+                compress,
+                &progress,
+            )
         }
         Commands::Decode {
             carrier_path,
             output_path,
             key,
+            decompress,
         } => {
             let progress = ProgressTracker::new();
-            core::operations::decode(&carrier_path, &output_path, key, &progress)
+            core::operations::decode(&carrier_path, &output_path, key, decompress, &progress)
         }
         Commands::GenerateKey { length, output } => {
             let key = cryptography::util::generate_key(length)?;

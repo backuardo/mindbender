@@ -5,7 +5,14 @@
 
 ## Introduction
 
-*A steganography CLI tool for encrypting, hiding, and retrieving text within images.*
+*A steganography CLI tool for encrypting, compressing, hiding, and retrieving text within images.*
+
+### Features
+
+- Text Encoding and Decoding: Hide and retrieve messages within images using LSB steganography
+- Encryption: Secure messages with optional AES encryption
+- Compression: Optimize hidden data with optional Zlib compression
+- Versatile File Handling: Supports lossy image conversion to lossless formats for better encoding
 
 ### Building from source
 
@@ -63,10 +70,11 @@ mindbender encode [OPTIONS] <DATA_FILE_PATH> <CARRIER_FILE_PATH>
 **Options**
 -   `-o`, `--output-path <OUTPUT_FILE_PATH>`: Output path for the encoded image (default: `output.png`).
 -   `-k`, `--key <KEY>`: Optional encryption key.
+-   `-c`, `--compress`: Enable compression (default: `false`).
 
 **Example:**
 ```
-mindbender encode secret_message.txt carrier.jpg --output-path hidden.png --key "my_secret_key"
+mindbender encode secret_message.txt carrier.jpg --output-path hidden.png --key "my_secret_key" --compress
 ```
 
 #### Decode a message
@@ -78,10 +86,11 @@ mindbender decode [OPTIONS] <CARRIER_FILE_PATH>
 **Options**
 -   `-o`, `--output-path <OUTPUT_FILE_PATH>`: Output path for the decoded message (default: `decoded.txt`).
 -   `-k`, `--key <KEY>`: Optional decryption key.
+-   `-d`, `--decompress`: Enable decompression (default: `false`).
 
 **Example:**
 ```
-mindbender decode hidden.png --output-path revealed_message.txt --key "my_secret_key"
+mindbender decode hidden.png --output-path revealed_message.txt --key "my_secret_key" --decompress
 ```
 
 ### Terminal User Interface (TUI)

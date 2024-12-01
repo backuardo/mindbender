@@ -303,3 +303,163 @@ fn test_encode_with_insufficient_capacity() -> Result<(), Box<dyn std::error::Er
 
     Ok(())
 }
+
+#[test]
+fn test_encode_decode_with_compression() -> Result<(), Box<dyn std::error::Error>> {
+    let temp_dir = tempdir()?;
+    let data_path = temp_dir.path().join("data.txt");
+    let carrier_path = temp_dir.path().join("carrier.png");
+    let encoded_image_path = temp_dir.path().join("encoded.png");
+    let decoded_text_path = temp_dir.path().join("decoded.txt");
+
+    fs::write(&data_path, "Message with compression!")?;
+    fs::write(&carrier_path, include_bytes!("example/carrier.png"))?;
+
+    Command::cargo_bin("mindbender")?
+        .args(&[
+            "encode",
+            data_path.to_str().unwrap(),
+            carrier_path.to_str().unwrap(),
+            "--output-path",
+            encoded_image_path.to_str().unwrap(),
+            "--compress",
+        ])
+        .assert()
+        .success();
+
+    Command::cargo_bin("mindbender")?
+        .args(&[
+            "decode",
+            encoded_image_path.to_str().unwrap(),
+            "--output-path",
+            decoded_text_path.to_str().unwrap(),
+            "--decompress",
+        ])
+        .assert()
+        .success();
+
+    let decoded_text = fs::read_to_string(decoded_text_path)?;
+    assert_eq!(decoded_text, "Message with compression!");
+
+    Ok(())
+}
+
+#[test]
+fn test_encode_with_compression_decode_without_decompression(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let temp_dir = tempdir()?;
+    let data_path = temp_dir.path().join("data.txt");
+    let carrier_path = temp_dir.path().join("carrier.png");
+    let encoded_image_path = temp_dir.path().join("encoded.png");
+    let decoded_text_path = temp_dir.path().join("decoded.txt");
+
+    fs::write(&data_path, "Compressed message!")?;
+    fs::write(&carrier_path, include_bytes!("example/carrier.png"))?;
+
+    Command::cargo_bin("mindbender")?
+        .args(&[
+            "encode",
+            data_path.to_str().unwrap(),
+            carrier_path.to_str().unwrap(),
+            "--output-path",
+            encoded_image_path.to_str().unwrap(),
+            "--compress",
+        ])
+        .assert()
+        .success();
+
+    Command::cargo_bin("mindbender")?
+        .args(&[
+            "decode",
+            encoded_image_path.to_str().unwrap(),
+            "--output-path",
+            decoded_text_path.to_str().unwrap(),
+        ])
+        .assert()
+        .failure()
+        .stderr(predicates::str::contains(
+            "Data is compressed but decompression was not requested",
+        ));
+
+    Ok(())
+}
+
+#[test]
+fn test_decode_without_compression_with_decompression() -> Result<(), Box<dyn std::error::Error>> {
+    let temp_dir = tempdir()?;
+    let data_path = temp_dir.path().join("data.txt");
+    let carrier_path = temp_dir.path().join("carrier.png");
+    let encoded_image_path = temp_dir.path().join("encoded.png");
+    let decoded_text_path = temp_dir.path().join("decoded.txt");
+
+    fs::write(&data_path, "Non-compressed message!")?;
+    fs::write(&carrier_path, include_bytes!("example/carrier.png"))?;
+
+    Command::cargo_bin("mindbender")?
+        .args(&[
+            "encode",
+            data_path.to_str().unwrap(),
+            carrier_path.to_str().unwrap(),
+            "--output-path",
+            encoded_image_path.to_str().unwrap(),
+        ])
+        .assert()
+        .success();
+
+    Command::cargo_bin("mindbender")?
+        .args(&[
+            "decode",
+            encoded_image_path.to_str().unwrap(),
+            "--output-path",
+            decoded_text_path.to_str().unwrap(),
+            "--decompress",
+        ])
+        .assert()
+        .failure()
+        .stderr(predicates::str::contains(
+            "Decompression expected, but message is not compressed",
+        ));
+
+    Ok(())
+}
+
+#[test]
+fn test_compression_decompression_large_data() -> Result<(), Box<dyn std::error::Error>> {
+    let temp_dir = tempdir()?;
+    let data_path = temp_dir.path().join("data.txt");
+    let carrier_path = temp_dir.path().join("carrier.png");
+    let encoded_image_path = temp_dir.path().join("encoded.png");
+    let decoded_text_path = temp_dir.path().join("decoded.txt");
+
+    let large_message = "Large message!".repeat(1000);
+    fs::write(&data_path, &large_message)?;
+    fs::write(&carrier_path, include_bytes!("example/carrier.png"))?;
+
+    Command::cargo_bin("mindbender")?
+        .args(&[
+            "encode",
+            data_path.to_str().unwrap(),
+            carrier_path.to_str().unwrap(),
+            "--output-path",
+            encoded_image_path.to_str().unwrap(),
+            "--compress",
+        ])
+        .assert()
+        .success();
+
+    Command::cargo_bin("mindbender")?
+        .args(&[
+            "decode",
+            encoded_image_path.to_str().unwrap(),
+            "--output-path",
+            decoded_text_path.to_str().unwrap(),
+            "--decompress",
+        ])
+        .assert()
+        .success();
+
+    let decoded_text = fs::read_to_string(decoded_text_path)?;
+    assert_eq!(decoded_text, large_message);
+
+    Ok(())
+}
